@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.devpost-hackathon-state.json
+coverage/
+playwright-report/
+test-results/

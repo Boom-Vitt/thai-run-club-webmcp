@@ -1,0 +1,670 @@
+import "./styles.css";
+import { CLUB_RULES, EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
+import {
+  checkReadiness,
+  confirmPendingRegistration,
+  discoverEvents,
+  findEvent,
+  readPendingRegistration,
+  readRegistrations,
+  safeReturnOptions,
+  stageRegistration,
+} from "./domain";
+import type {
+  ActivityEntry,
+  City,
+  EventFilters,
+  PaceBand,
+  RegistrationInput,
+  SocialOption,
+  TransportMode,
+} from "./types";
+import { registerWebMcpTools } from "./webmcp";
+
+const app = document.querySelector<HTMLDivElement>("#app")!;
+if (!app) throw new Error("App root not found");
+
+const state: {
+  filters: EventFilters;
+  selectedEventId: string | null;
+  activities: ActivityEntry[];
+  webMcpSupported: boolean;
+} = {
+  filters: {},
+  selectedEventId: null,
+  activities: [
+    {
+      id: "boot",
+      time: new Date().toISOString(),
+      source: "system",
+      title: "Shared context ready",
+      detail: `${EVENTS.length} demo events loaded · human UI active`,
+    },
+  ],
+  webMcpSupported: false,
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatDate(date: string): string {
+  return new Intl.DateTimeFormat("th-TH", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${date}T12:00:00+07:00`));
+}
+
+function eventSocialLine(social: SocialOption[]): string {
+  if (social.includes("beer_optional")) return "Run + optional 20+ social";
+  if (social.includes("alcohol_free")) return "Run + alcohol-free social";
+  return "Run only";
+}
+
+function routeGraphic(eventId: string) {
+  const paths: Record<string, string> = {
+    "bkk-riverside-5": "M18 104 C58 22 84 146 132 72 S202 20 238 94",
+    "bkk-oldtown-7": "M18 96 C44 38 76 44 91 92 S154 146 176 79 S217 30 242 55",
+    "cnx-moat-5": "M28 100 L52 36 L171 25 L230 74 L196 128 L76 135 Z",
+    "hkt-oldtown-3": "M18 108 C72 98 48 34 109 42 S158 122 238 57",
+    "kkc-lake-10": "M35 78 C35 22 218 20 224 75 S55 148 35 78 Z",
+    "bkk-green-3": "M22 112 C42 46 89 28 124 81 S191 126 239 50",
+  };
+  const path = paths[eventId] ?? paths["bkk-riverside-5"];
+  return `
+    <svg viewBox="0 0 260 160" role="img" aria-label="ภาพเส้นทางเชิงสัญลักษณ์">
+      <path class="route-grid" d="M0 32H260M0 80H260M0 128H260M52 0V160M130 0V160M208 0V160" />
+      <path class="route-shadow" d="${path}" />
+      <path class="route-line" d="${path}" pathLength="1" />
+      <circle class="route-start" cx="18" cy="104" r="6" />
+      <circle class="route-finish" cx="238" cy="94" r="8" />
+    </svg>`;
+}
+
+function renderShell() {
+  app.innerHTML = `
+    <a class="skip-link" href="#events">ข้ามไปดูอีเวนต์</a>
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="กลับด้านบน">
+        <span class="wordmark-mark" aria-hidden="true">R/</span>
+        <span>RUN SOCIAL TH <small>WORKING LABEL</small></span>
+      </a>
+      <nav aria-label="เมนูหลัก">
+        <a href="#events">Runs</a>
+        <a href="#webmcp">WebMCP</a>
+        <a href="#rules">Rules</a>
+      </nav>
+      <button class="header-pass" id="showPassesButton" type="button">
+        My run pass <span id="passCount">0</span>
+      </button>
+    </header>
+
+    <main id="top">
+      <section class="hero section-shell" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span></span> THAILAND · HUMAN + AGENT RUNNING</p>
+          <h1 id="hero-title">RUN FIRST.<br /><em>SOCIAL</em> AFTER.</h1>
+          <p class="hero-lead">รวมคนที่อยากวิ่งให้จบ แล้วค่อยนั่งคุยกันต่อ—เบียร์เป็นทางเลือก น้ำและ alcohol-free มาก่อนเสมอ</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#events">หา run ที่ใช่ <span>↘</span></a>
+            <button class="button button-ghost" id="agentDemoButton" type="button">ลอง agent flow <span>✦</span></button>
+          </div>
+          <div class="hero-proof" aria-label="ข้อมูลสำคัญ">
+            <span><strong>${EVENTS.length}</strong> demo runs</span>
+            <span><strong>9</strong> WebMCP tools</span>
+            <span><strong>0</strong> forced drinks</span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="hero-orbit hero-orbit-one"></div>
+          <div class="hero-orbit hero-orbit-two"></div>
+          <svg viewBox="0 0 560 620" class="hero-route">
+            <path d="M54 520 C88 368 224 488 220 304 S356 112 500 164" pathLength="1" />
+          </svg>
+          <div class="hero-stat hero-stat-distance"><span>05</span><small>KM / CITY LOOP</small></div>
+          <div class="hero-stat hero-stat-time"><small>MEET</small><span>17:15</span></div>
+          <div class="hero-badge"><span>20+</span><small>OPTIONAL<br />SOCIAL</small></div>
+          <div class="runner-figure"><span class="runner-head"></span><span class="runner-body"></span><span class="runner-leg one"></span><span class="runner-leg two"></span><span class="runner-arm one"></span><span class="runner-arm two"></span></div>
+          <p class="hero-caption">The route is shared.<br />The choice is yours.</p>
+        </div>
+      </section>
+
+      <section class="ticker" aria-label="หลักการกิจกรรม">
+        <div>RUN TOGETHER <span>✦</span> CHOOSE YOUR PACE <span>✦</span> SOCIAL RESPONSIBLY <span>✦</span> GET HOME SAFE <span>✦</span></div>
+      </section>
+
+      <section class="events-section section-shell" id="events" aria-labelledby="events-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow"><span></span> CURATED DEMO EVENTS</p>
+            <h2 id="events-title">เลือกเมือง<br />เลือกเพซของคุณ</h2>
+          </div>
+          <p>อีเวนต์ตัวอย่างสำหรับพิสูจน์ end-to-end experience ข้อมูลจริงต้องได้รับการยืนยันจากผู้จัดก่อนเผยแพร่</p>
+        </div>
+        <form class="filter-rail" id="eventFilters" aria-label="ตัวกรองอีเวนต์">
+          <label>
+            <span>เมือง</span>
+            <select name="city">
+              <option value="">ทุกเมือง</option>
+              <option>Bangkok</option>
+              <option>Chiang Mai</option>
+              <option>Phuket</option>
+              <option>Khon Kaen</option>
+            </select>
+          </label>
+          <label>
+            <span>ระยะ</span>
+            <select name="distance">
+              <option value="">ทุกระยะ</option>
+              <option value="3">3 KM</option>
+              <option value="5">5 KM</option>
+              <option value="7">7 KM</option>
+              <option value="10">10 KM</option>
+            </select>
+          </label>
+          <label>
+            <span>เพซ</span>
+            <select name="pace">
+              <option value="">ทุกเพซ</option>
+              <option value="social">Social</option>
+              <option value="steady">Steady</option>
+              <option value="tempo">Tempo</option>
+            </select>
+          </label>
+          <label>
+            <span>หลังวิ่ง</span>
+            <select name="social">
+              <option value="">ทุกแบบ</option>
+              <option value="alcohol_free">Alcohol-free</option>
+              <option value="beer_optional">Beer optional · 20+</option>
+              <option value="run_only">Run only</option>
+            </select>
+          </label>
+          <button class="filter-reset" type="reset">Reset ↺</button>
+        </form>
+        <div class="events-meta"><p><strong id="eventCount">${EVENTS.length}</strong> runs available</p><p>Demo data · not live events</p></div>
+        <div class="event-grid" id="eventGrid"></div>
+      </section>
+
+      <section class="agent-section" id="webmcp" aria-labelledby="agent-title">
+        <div class="section-shell agent-layout">
+          <div class="agent-copy">
+            <p class="eyebrow eyebrow-light"><span></span> WEBMCP-NATIVE</p>
+            <h2 id="agent-title">ONE ASK.<br /><em>NINE PRECISE TOOLS.</em></h2>
+            <p>ไม่ต้องให้ agent เดาปุ่มหรือ scrape หน้าเว็บ ทุก action มีชื่อ จุดประสงค์ schema และผลลัพธ์ที่ชัดเจน</p>
+            <div class="agent-status" id="webMcpStatus" role="status">
+              <span class="status-dot"></span>
+              <div><strong>Checking WebMCP…</strong><small>Human interface is already available</small></div>
+            </div>
+            <div class="agent-steps">
+              <article><span>01</span><div><h3>DISCOVER</h3><p>เมือง · ระยะ · เพซ · social choice</p></div></article>
+              <article><span>02</span><div><h3>VERIFY</h3><p>กฎ · อายุ · readiness · ทางกลับ</p></div></article>
+              <article><span>03</span><div><h3>PREPARE</h3><p>agent เตรียม คนตรวจและกดยืนยัน</p></div></article>
+            </div>
+          </div>
+          <div class="agent-console" aria-label="WebMCP activity">
+            <div class="console-top"><span><i></i><i></i><i></i></span><strong>LIVE ACTIVITY</strong><small id="toolCount">9 tools</small></div>
+            <div class="console-prompt">
+              <span>YOU</span>
+              <p>“หา social run 5K ในกรุงเทพที่มี alcohol-free แล้วช่วยวางแผนกลับบ้านให้ด้วย”</p>
+            </div>
+            <div class="activity-list" id="activityList" aria-live="polite"></div>
+            <div class="console-actions" id="fallbackTools" hidden>
+              <button type="button" data-demo-tool="discover">Run discovery tool</button>
+              <button type="button" data-demo-tool="rules">Read safety rules</button>
+              <button type="button" data-demo-tool="return">Plan safe return</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rules-section section-shell" id="rules" aria-labelledby="rules-title">
+        <div class="section-heading rules-heading">
+          <div>
+            <p class="eyebrow"><span></span> CLUB CODE</p>
+            <h2 id="rules-title">GOOD RUN.<br />GOOD CALLS.</h2>
+          </div>
+          <p>กฎถูกออกแบบให้การวิ่งมาก่อน การดื่มเป็นทางเลือก และทุกคนกลับบ้านอย่างปลอดภัย</p>
+        </div>
+        <div class="rule-grid">
+          ${CLUB_RULES.map(
+            (rule, index) => `
+              <article class="rule-card">
+                <span>${String(index + 1).padStart(2, "0")}</span>
+                <h3>${rule.title}</h3>
+                <p>${rule.body}</p>
+              </article>`,
+          ).join("")}
+        </div>
+        <aside class="legal-note">
+          <strong>IMPORTANT / สำคัญ</strong>
+          <p>เว็บนี้ไม่ขายหรือโฆษณาเครื่องดื่มแอลกอฮอล์ กิจกรรมตัวอย่างต้องได้รับการตรวจด้านใบอนุญาต เวลา สถานที่ ประกัน และกฎหมายที่ใช้บังคับก่อนจัดจริง</p>
+        </aside>
+      </section>
+
+      <section class="passes-section section-shell" id="passes" aria-labelledby="passes-title">
+        <div class="passes-copy">
+          <p class="eyebrow"><span></span> YOUR NEXT RUN</p>
+          <h2 id="passes-title">RUN PASSES</h2>
+          <p>ข้อมูลเดโมเก็บอยู่ใน browser นี้เท่านั้น Agent เตรียมได้ แต่คุณต้องเป็นคนยืนยันการสมัครบนหน้าจอ</p>
+        </div>
+        <div class="passes-list" id="passesList"></div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-mark">R/<span>RUN SOCIAL TH</span></div>
+      <p>DEMO PLATFORM · NOT MEDICAL OR LEGAL ADVICE</p>
+      <div><a href="#rules">Rules</a><a href="#webmcp">WebMCP</a><a href="#top">Back to top ↑</a></div>
+    </footer>
+
+    <dialog class="event-dialog" id="eventDialog" aria-labelledby="eventDialogTitle">
+      <button class="dialog-close" type="button" data-close-dialog="eventDialog" aria-label="ปิด">×</button>
+      <div id="eventDialogContent"></div>
+    </dialog>
+
+    <dialog class="registration-dialog" id="registrationDialog" aria-labelledby="registrationTitle">
+      <button class="dialog-close" type="button" data-close-dialog="registrationDialog" aria-label="ปิด">×</button>
+      <div id="registrationContent"></div>
+    </dialog>
+
+    <dialog class="confirmation-dialog" id="confirmationDialog" aria-labelledby="confirmationTitle">
+      <button class="dialog-close" type="button" data-close-dialog="confirmationDialog" aria-label="ปิด">×</button>
+      <div id="confirmationContent"></div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  `;
+}
+
+function renderEvents() {
+  const grid = document.querySelector<HTMLDivElement>("#eventGrid");
+  const count = document.querySelector<HTMLElement>("#eventCount");
+  if (!grid || !count) return;
+  const matches = discoverEvents(state.filters);
+  count.textContent = String(matches.length);
+
+  if (matches.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <span>0/</span><h3>ยังไม่เจอ run ที่ตรงทุกข้อ</h3>
+        <p>ลองลดตัวกรองหนึ่งอย่าง หรือให้ agent ช่วยหาตัวเลือกที่ใกล้เคียง</p>
+        <button class="button button-dark" type="button" id="emptyReset">ดูทั้งหมด</button>
+      </div>`;
+    document.querySelector<HTMLButtonElement>("#emptyReset")?.addEventListener("click", resetFilters);
+    return;
+  }
+
+  grid.innerHTML = matches.map(({ event }, index) => `
+    <article class="event-card accent-${event.accent}" data-event-id="${event.id}">
+      <div class="event-card-top">
+        <span>${event.city.toUpperCase()} / ${event.neighborhood}</span>
+        <span>${String(index + 1).padStart(2, "0")}</span>
+      </div>
+      <div class="event-map">${routeGraphic(event.id)}</div>
+      <div class="event-main-fact"><strong>${event.distanceKm}</strong><span>KM<br />${escapeHtml(event.routeLabel.toUpperCase())}</span></div>
+      <div class="event-date"><strong>${formatDate(event.date)}</strong><span>${event.startTime} น.</span></div>
+      <div class="event-tags">
+        ${event.paceBands.map((pace) => `<span>${PACE_LABELS[pace]}</span>`).join("")}
+        <span>${eventSocialLine(event.social)}</span>
+      </div>
+      <div class="event-card-bottom">
+        <div><small>FROM</small><strong>฿${event.priceThb}</strong></div>
+        <div><small>LEFT</small><strong>${event.spotsLeft}</strong></div>
+        <button type="button" data-open-event="${event.id}" aria-label="ดูรายละเอียด ${event.city} ${event.distanceKm} กิโลเมตร">DETAILS <span>↗</span></button>
+      </div>
+    </article>`).join("");
+
+  grid.querySelectorAll<HTMLButtonElement>("[data-open-event]").forEach((button) => {
+    button.addEventListener("click", () => openEvent(button.dataset.openEvent ?? "", "human"));
+  });
+}
+
+function renderActivity() {
+  const list = document.querySelector<HTMLDivElement>("#activityList");
+  if (!list) return;
+  list.innerHTML = state.activities.slice(0, 6).map((entry) => `
+    <article class="activity-item source-${entry.source}">
+      <span>${entry.source === "agent" ? "✦" : entry.source === "human" ? "↗" : "•"}</span>
+      <div><strong>${escapeHtml(entry.title)}</strong><p>${escapeHtml(entry.detail)}</p></div>
+      <time>${new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit" }).format(new Date(entry.time))}</time>
+    </article>`).join("");
+}
+
+function addActivity(entry: Omit<ActivityEntry, "id" | "time">) {
+  state.activities.unshift({
+    ...entry,
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    time: new Date().toISOString(),
+  });
+  renderActivity();
+}
+
+function openEvent(eventId: string, source: "human" | "agent") {
+  const event = findEvent(eventId);
+  const dialog = document.querySelector<HTMLDialogElement>("#eventDialog");
+  const content = document.querySelector<HTMLDivElement>("#eventDialogContent");
+  if (!event || !dialog || !content) return;
+  state.selectedEventId = eventId;
+
+  content.innerHTML = `
+    <div class="dialog-kicker">${event.city.toUpperCase()} · ${event.neighborhood}</div>
+    <div class="dialog-hero accent-${event.accent}">
+      <div><p>${formatDate(event.date)} · ${event.startTime} น.</p><h2 id="eventDialogTitle">${event.distanceKm} KM<br /><em>${escapeHtml(event.routeLabel)}</em></h2></div>
+      <div class="dialog-route">${routeGraphic(event.id)}</div>
+    </div>
+    <div class="dialog-grid">
+      <section><small>MEET</small><strong>${event.meetingPoint}</strong></section>
+      <section><small>FINISH</small><strong>${event.finishVenue}</strong></section>
+      <section><small>ROUTE</small><strong>${event.routeNote}</strong></section>
+      <section><small>GET HOME</small><strong>${event.transit}</strong></section>
+    </div>
+    <div class="dialog-options">
+      <div><small>PACE GROUPS</small>${event.paceBands.map((pace) => `<span>${PACE_LABELS[pace]}</span>`).join("")}</div>
+      <div><small>SOCIAL OPTIONS</small>${event.social.map((option) => `<span>${SOCIAL_LABELS[option]}</span>`).join("")}</div>
+    </div>
+    <div class="dialog-notice"><strong>CHOICE POLICY</strong><p>เบียร์ไม่รวมในค่าสมัครและไม่จำเป็นต่อการเข้าร่วม ผู้เลือกแอลกอฮอล์ต้องอายุ 20+ และใช้บริการแยกกับสถานที่ที่มีใบอนุญาต</p></div>
+    <div class="dialog-footer">
+      <div><small>${event.spotsLeft} / ${event.capacity} spots left</small><strong>฿${event.priceThb}</strong></div>
+      <button class="button button-primary" type="button" data-register-event="${event.id}">เตรียมสมัคร <span>→</span></button>
+    </div>`;
+
+  content.querySelector<HTMLButtonElement>("[data-register-event]")?.addEventListener("click", () => {
+    dialog.close();
+    openRegistration(event.id);
+  });
+  if (!dialog.open) dialog.showModal();
+  if (source === "human") {
+    addActivity({ source: "human", title: "Opened event details", detail: `${event.city} · ${event.distanceKm} km` });
+  }
+}
+
+function openRegistration(eventId: string) {
+  const event = findEvent(eventId);
+  const dialog = document.querySelector<HTMLDialogElement>("#registrationDialog");
+  const content = document.querySelector<HTMLDivElement>("#registrationContent");
+  if (!event || !dialog || !content) return;
+
+  content.innerHTML = `
+    <div class="form-heading">
+      <p class="dialog-kicker">HUMAN CONFIRMATION FLOW</p>
+      <h2 id="registrationTitle">เตรียม Run Pass</h2>
+      <p>${event.city} · ${event.distanceKm} KM · ${formatDate(event.date)}</p>
+    </div>
+    <form id="registrationForm" class="registration-form" novalidate>
+      <input type="hidden" name="eventId" value="${event.id}" />
+      <div class="form-row">
+        <label><span>ชื่อผู้วิ่ง *</span><input name="runnerName" autocomplete="name" maxlength="80" required /></label>
+        <label><span>อีเมล *</span><input name="email" type="email" autocomplete="email" maxlength="120" required /></label>
+      </div>
+      <label><span>เบอร์ติดต่อฉุกเฉิน *</span><input name="emergencyContact" inputmode="tel" autocomplete="tel" maxlength="40" required /></label>
+      <div class="form-row">
+        <label><span>กลุ่มเพซ *</span><select name="pace" required>${event.paceBands.map((pace) => `<option value="${pace}">${PACE_LABELS[pace]}</option>`).join("")}</select></label>
+        <label><span>หลังวิ่ง *</span><select name="socialPreference" id="socialPreference" required>${event.social.map((option) => `<option value="${option}">${SOCIAL_LABELS[option]}</option>`).join("")}</select></label>
+      </div>
+      <fieldset>
+        <legend>แผนเดินทางกลับ *</legend>
+        <label class="choice"><input type="radio" name="transportMode" value="transit" checked /><span>ขนส่งสาธารณะ</span></label>
+        <label class="choice"><input type="radio" name="transportMode" value="taxi" /><span>แท็กซี่ / ride-hailing</span></label>
+        <label class="choice"><input type="radio" name="transportMode" value="walk" /><span>เดินกลับ</span></label>
+        <label class="choice"><input type="radio" name="transportMode" value="sober_driver" /><span>คนขับที่ไม่ดื่ม</span></label>
+      </fieldset>
+      <label class="check age-check" id="ageCheck"><input type="checkbox" name="age20Plus" /><span>ฉันยืนยันว่ามีอายุ 20 ปีขึ้นไปสำหรับตัวเลือกแอลกอฮอล์ และเข้าใจว่าสถานที่จะตรวจบัตร</span></label>
+      <label class="check"><input type="checkbox" name="rulesAccepted" required /><span>ฉันอ่านและยอมรับ Club Code รวมถึง RUN FIRST และ NO DRINK & DRIVE *</span></label>
+      <label class="check"><input type="checkbox" name="privacyAccepted" required /><span>ฉันยินยอมให้เก็บข้อมูลนี้ใน browser เพื่อสร้าง run pass เดโม *</span></label>
+      <div class="form-errors" id="formErrors" role="alert"></div>
+      <button class="button button-dark button-full" type="submit">ตรวจข้อมูลและไปหน้ายืนยัน <span>→</span></button>
+      <p class="form-footnote">การกดปุ่มนี้ยังไม่สมัคร ระบบจะเปิดสรุปให้คุณยืนยันอีกครั้ง</p>
+    </form>`;
+
+  const form = content.querySelector<HTMLFormElement>("#registrationForm");
+  const socialSelect = content.querySelector<HTMLSelectElement>("#socialPreference");
+  const ageCheck = content.querySelector<HTMLElement>("#ageCheck");
+  const updateAgeVisibility = () => ageCheck?.classList.toggle("is-required", socialSelect?.value === "beer_optional");
+  socialSelect?.addEventListener("change", updateAgeVisibility);
+  updateAgeVisibility();
+
+  form?.addEventListener("submit", (event_) => {
+    event_.preventDefault();
+    const formData = new FormData(form);
+    const input: RegistrationInput = {
+      eventId,
+      runnerName: String(formData.get("runnerName") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      emergencyContact: String(formData.get("emergencyContact") ?? ""),
+      pace: String(formData.get("pace")) as PaceBand,
+      socialPreference: String(formData.get("socialPreference")) as SocialOption,
+      age20Plus: formData.get("age20Plus") === "on",
+      transportMode: String(formData.get("transportMode")) as TransportMode,
+      rulesAccepted: formData.get("rulesAccepted") === "on",
+      privacyAccepted: formData.get("privacyAccepted") === "on",
+    };
+    const result = stageRegistration(localStorage, input);
+    const errorBox = content.querySelector<HTMLDivElement>("#formErrors");
+    if (result.status === "validation_failed") {
+      if (errorBox) errorBox.innerHTML = `<strong>ยังไปต่อไม่ได้</strong><ul>${result.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>`;
+      return;
+    }
+    addActivity({ source: "human", title: "Registration prepared", detail: "Waiting for final human confirmation" });
+    dialog.close();
+    showPendingConfirmation(input);
+  });
+
+  if (!dialog.open) dialog.showModal();
+}
+
+function showPendingConfirmation(input: RegistrationInput) {
+  const event = findEvent(input.eventId);
+  const dialog = document.querySelector<HTMLDialogElement>("#confirmationDialog");
+  const content = document.querySelector<HTMLDivElement>("#confirmationContent");
+  if (!event || !dialog || !content) return;
+  const returnPlan = safeReturnOptions(event.id, input.socialPreference);
+
+  content.innerHTML = `
+    <div class="confirmation-icon" aria-hidden="true">✓?</div>
+    <p class="dialog-kicker">REVIEW BEFORE COMMIT</p>
+    <h2 id="confirmationTitle">คุณเป็นคนตัดสินใจ</h2>
+    <p class="confirmation-lead">Agent หรือฟอร์มเตรียมข้อมูลได้ แต่ run pass จะเกิดขึ้นเมื่อคุณกดยืนยันเท่านั้น</p>
+    <dl class="confirmation-list">
+      <div><dt>RUNNER</dt><dd>${escapeHtml(input.runnerName)}</dd></div>
+      <div><dt>EVENT</dt><dd>${event.city} · ${event.distanceKm} KM · ${formatDate(event.date)}</dd></div>
+      <div><dt>PACE</dt><dd>${PACE_LABELS[input.pace]}</dd></div>
+      <div><dt>SOCIAL</dt><dd>${SOCIAL_LABELS[input.socialPreference]}</dd></div>
+      <div><dt>GET HOME</dt><dd>${escapeHtml(returnPlan.warning)}</dd></div>
+    </dl>
+    <div class="confirmation-actions">
+      <button class="button button-ghost" type="button" id="editPending">กลับไปแก้</button>
+      <button class="button button-primary" type="button" id="confirmPending">ยืนยันการสมัคร <span>→</span></button>
+    </div>`;
+
+  content.querySelector<HTMLButtonElement>("#editPending")?.addEventListener("click", () => {
+    dialog.close();
+    openRegistration(input.eventId);
+  });
+  content.querySelector<HTMLButtonElement>("#confirmPending")?.addEventListener("click", () => {
+    try {
+      const registration = confirmPendingRegistration(localStorage);
+      addActivity({ source: "human", title: "Run pass confirmed", detail: registration.id });
+      dialog.close();
+      refreshPasses();
+      showToast(`สร้าง ${registration.id} แล้ว`);
+      document.querySelector("#passes")?.scrollIntoView({ behavior: "smooth" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "ยืนยันไม่สำเร็จ", true);
+    }
+  });
+  if (!dialog.open) dialog.showModal();
+}
+
+function refreshPasses() {
+  const list = document.querySelector<HTMLDivElement>("#passesList");
+  const count = document.querySelector<HTMLElement>("#passCount");
+  if (!list || !count) return;
+  const registrations = readRegistrations(localStorage);
+  const active = registrations.filter((registration) => registration.status === "confirmed");
+  count.textContent = String(active.length);
+
+  if (registrations.length === 0) {
+    list.innerHTML = `<div class="pass-empty"><span>R/</span><div><strong>ยังไม่มี run pass</strong><p>เลือกอีเวนต์ หรือให้ agent เตรียมการสมัครให้คุณ</p></div><a href="#events">Browse runs ↗</a></div>`;
+    return;
+  }
+
+  list.innerHTML = registrations.map((registration) => {
+    const event = findEvent(registration.eventId);
+    if (!event) return "";
+    return `
+      <article class="run-pass ${registration.status === "cancelled" ? "is-cancelled" : ""}">
+        <div class="pass-edge"><span>R/</span><small>${registration.status.toUpperCase()}</small></div>
+        <div class="pass-body">
+          <p>${event.city.toUpperCase()} / ${event.neighborhood}</p>
+          <h3>${event.distanceKm} KM <em>${escapeHtml(event.routeLabel)}</em></h3>
+          <div><span>${formatDate(event.date)} · ${event.startTime}</span><span>${PACE_LABELS[registration.pace]}</span><span>${SOCIAL_LABELS[registration.socialPreference]}</span></div>
+        </div>
+        <div class="pass-code"><span>${escapeHtml(registration.id)}</span><div aria-hidden="true">▌▐▌▌▐▌▐</div></div>
+      </article>`;
+  }).join("");
+}
+
+function resetFilters() {
+  const form = document.querySelector<HTMLFormElement>("#eventFilters");
+  form?.reset();
+  state.filters = {};
+  renderEvents();
+}
+
+function showToast(message: string, isError = false) {
+  const toast = document.querySelector<HTMLDivElement>("#toast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.toggle("is-error", isError);
+  toast.classList.add("is-visible");
+  window.setTimeout(() => toast.classList.remove("is-visible"), 3400);
+}
+
+function bindUi() {
+  document.querySelector<HTMLFormElement>("#eventFilters")?.addEventListener("change", (event) => {
+    const form = event.currentTarget as HTMLFormElement;
+    const data = new FormData(form);
+    state.filters = {
+      city: (data.get("city") || undefined) as City | undefined,
+      distanceKm: data.get("distance") ? Number(data.get("distance")) : undefined,
+      pace: (data.get("pace") || undefined) as PaceBand | undefined,
+      socialPreference: (data.get("social") || undefined) as SocialOption | undefined,
+    };
+    renderEvents();
+  });
+  document.querySelector<HTMLFormElement>("#eventFilters")?.addEventListener("reset", () => {
+    window.setTimeout(() => {
+      state.filters = {};
+      renderEvents();
+    }, 0);
+  });
+  document.querySelector<HTMLButtonElement>("#showPassesButton")?.addEventListener("click", () => {
+    document.querySelector("#passes")?.scrollIntoView({ behavior: "smooth" });
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-close-dialog]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelector<HTMLDialogElement>(`#${button.dataset.closeDialog}`)?.close();
+    });
+  });
+  document.querySelectorAll<HTMLDialogElement>("dialog").forEach((dialog) => {
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+  });
+  document.querySelector<HTMLButtonElement>("#agentDemoButton")?.addEventListener("click", () => {
+    document.querySelector("#webmcp")?.scrollIntoView({ behavior: "smooth" });
+    window.setTimeout(() => runDemoTool("discover"), 400);
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-demo-tool]").forEach((button) => {
+    button.addEventListener("click", () => runDemoTool(button.dataset.demoTool ?? ""));
+  });
+}
+
+async function runDemoTool(action: string) {
+  const harness = window.__RUN_SOCIAL_WEBMCP__;
+  if (!harness) return;
+  try {
+    if (action === "discover") {
+      const result = await harness.execute("discover_run_events", {
+        city: "Bangkok",
+        distance_km: 5,
+        social_preference: "alcohol_free",
+        alcohol_free_required: true,
+      });
+      const first = (result as { events?: Array<{ id: string }> }).events?.[0];
+      if (first) openEvent(first.id, "agent");
+    } else if (action === "rules") {
+      await harness.execute("get_event_rules", { event_id: "bkk-riverside-5" });
+      document.querySelector("#rules")?.scrollIntoView({ behavior: "smooth" });
+    } else if (action === "return") {
+      await harness.execute("get_safe_return_options", {
+        event_id: "bkk-riverside-5",
+        social_preference: "beer_optional",
+      });
+      showToast("Safe-return plan added to activity");
+    }
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "Tool call failed", true);
+  }
+}
+
+async function initializeWebMcp() {
+  const result = await registerWebMcpTools(localStorage, {
+    selectEvent: (eventId) => openEvent(eventId, "agent"),
+    showPendingRegistration: showPendingConfirmation,
+    refreshPasses,
+    logActivity: addActivity,
+  });
+  state.webMcpSupported = result.supported;
+
+  const status = document.querySelector<HTMLDivElement>("#webMcpStatus");
+  const fallback = document.querySelector<HTMLDivElement>("#fallbackTools");
+  const toolCount = document.querySelector<HTMLElement>("#toolCount");
+  if (toolCount) toolCount.textContent = `${result.registered.length || 9} tools`;
+  if (status) {
+    status.classList.toggle("is-live", result.supported);
+    status.classList.toggle("is-fallback", !result.supported);
+    status.innerHTML = result.supported
+      ? `<span class="status-dot"></span><div><strong>WebMCP tools are live</strong><small>${result.registered.length} tools registered in this page</small></div>`
+      : `<span class="status-dot"></span><div><strong>Human mode + tool harness</strong><small>Open in ChatGPT browser or Chrome 149+ with WebMCP enabled</small></div>`;
+  }
+  if (fallback) fallback.hidden = result.supported;
+  addActivity({
+    source: "system",
+    title: result.supported ? "WebMCP registered" : "Progressive fallback active",
+    detail: result.supported
+      ? `${result.registered.length} structured tools exposed to the browser agent`
+      : "The human UI works; deterministic tool harness is available for local QA",
+  });
+}
+
+renderShell();
+renderEvents();
+renderActivity();
+refreshPasses();
+bindUi();
+
+const pending = readPendingRegistration(localStorage);
+if (pending) showPendingConfirmation(pending);
+
+void initializeWebMcp();
+
+const readinessDemo = checkReadiness({
+  eventId: "bkk-riverside-5",
+  age20Plus: true,
+  hasConcerningSymptoms: false,
+  hasHydrationPlan: true,
+  transportMode: "transit",
+  socialPreference: "alcohol_free",
+});
+if (readinessDemo.status === "blocked") {
+  console.warn("Baseline readiness check failed", readinessDemo);
+}
