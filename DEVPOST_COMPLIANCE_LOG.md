@@ -34,3 +34,10 @@
 - Supports: evidence quality for WebMCP Leverage and Execution, plus the required working browser/client demonstration.
 - Evidence: `WEBMCP_LIVE_QA.md` defines prompts, expected tool calls, pass/fail behavior, and the evidence record required before claiming completion.
 - Open risks: the eval pack cannot pass until the participant enables WebMCP in the connected Chrome or supplies the in-app browser; fallback-harness results do not count as native evidence.
+
+## 2026-09-02 — Dedicated-port collision proof
+
+- Change: Re-ran the production preview command while the verified instance was already listening on `127.0.0.1:5187`.
+- Supports: consistent deployment behavior and the participant's requirement that the project not collide with or silently move around other services.
+- Evidence: the second process exited with code 1 and `Port 5187 is already in use`; the original production preview remained healthy on the exact reserved port.
+- Open risks: a public deployment URL remains outside the local port guarantee and still requires participant authorization.

@@ -51,7 +51,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 - Production build: Vite 8.2.2, successful.
 - Automated verification: 3 test files, 20 tests, all passed, including the recommended 1.5K-character output budget for representative tool calls.
 - Security audit: npm reported 0 known vulnerabilities at install time.
-- Server: Node process bound only to `127.0.0.1:5187` with `--strictPort`.
+- Server: Node process bound only to `127.0.0.1:5187` with `--strictPort`; a deliberate second-instance test exited nonzero with `Port 5187 is already in use` instead of selecting another port.
 - Headers: HTTP 200, `Origin-Agent-Cluster: ?1`, `Permissions-Policy: tools=(self)`.
 - Browser smoke test: passed with no console warnings or errors.
 - Local source checkpoint: Git commit `42245a3` on 2026-09-02 Asia/Bangkok; private Devpost workflow state is excluded by `.gitignore`.
