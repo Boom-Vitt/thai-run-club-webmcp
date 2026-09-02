@@ -8,7 +8,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 
 | Requirement | Status | Evidence | Remaining work |
 | --- | --- | --- | --- |
-| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers nine imperative tools; 15 automated tests pass; mocked browser integration verifies all nine `registerTool()` calls | Enable WebMCP in a supported controlled browser and capture live tool discovery/execution evidence |
+| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers nine imperative tools; 20 automated tests pass; mocked browser integration verifies all nine `registerTool()` calls | Enable WebMCP in a supported controlled browser and capture live tool discovery/execution evidence |
 | Meaningful WebMCP leverage | PASS (code) | Discovery, comparison, details, rules, readiness, safe return, staged registration, pass lookup, and cancellation use bounded schemas and shared domain logic | Live browser evidence still required for submission proof |
 | Complete human product experience | PASS | Chrome browser smoke test completed filter → details → under-age block → staged confirmation → confirmed run pass on production build with no console errors | Add remote production URL for judges |
 | Human/agent shared context | PASS (code) | `get_run_event_details` opens the visible drawer; `prepare_run_registration` opens the confirmation UI; activity log records agent actions | Capture these actions from a real WebMCP client |
@@ -26,7 +26,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 | No sale, giveaway, discount, bundle, reward, or brand promotion | PASS | UI, policy file, domain response, and tests; no alcohol brand assets or product purchase flow |
 | Age 20+ gate | PASS | Human form blocks optional beer without declaration; automated negative test; browser negative test |
 | Refuse intoxicated service and licensed venue only | PASS (policy) | Visible rules and policy document; real venue enforcement remains organizer responsibility |
-| No drink and drive | PASS | Safe-return tool has no self-drive option and returns an explicit warning; automated test passes |
+| No drink and drive | PASS | Safe-return tool has no self-drive option and returns an explicit warning; execution and domain tests reject `drive` even when a client bypasses JSON Schema |
 | No medical diagnosis | PASS | Rule-based readiness output includes explicit disclaimer and blocks concerning symptoms |
 | Privacy minimization | PASS | Demo data is browser-local; emergency contact is omitted from `get_my_run_passes`; automated redaction test passes |
 
@@ -49,7 +49,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 - Node.js: v22.23.2.
 - Chrome: 152.0.7977.65.
 - Production build: Vite 8.2.2, successful.
-- Automated verification: 3 test files, 15 tests, all passed.
+- Automated verification: 3 test files, 20 tests, all passed, including the recommended 1.5K-character output budget for representative tool calls.
 - Security audit: npm reported 0 known vulnerabilities at install time.
 - Server: Node process bound only to `127.0.0.1:5187` with `--strictPort`.
 - Headers: HTTP 200, `Origin-Agent-Cluster: ?1`, `Permissions-Policy: tools=(self)`.

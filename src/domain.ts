@@ -7,6 +7,7 @@ import type {
   RegistrationInput,
   RunEvent,
   SocialOption,
+  TransportMode,
 } from "./types";
 
 export const STORAGE_KEYS = {
@@ -23,6 +24,8 @@ export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
+
+const SAFE_TRANSPORT_MODES: readonly TransportMode[] = ["transit", "taxi", "walk", "sober_driver"];
 
 export function findEvent(eventId: string): RunEvent | undefined {
   return EVENTS.find((event) => event.id === eventId);
@@ -97,6 +100,7 @@ export function checkReadiness(input: ReadinessInput): ReadinessResult {
   const event = findEvent(input.eventId);
   const reasons: string[] = [];
   const requiredActions: string[] = [];
+  let isBlocked = false;
 
   if (!event) {
     return {
@@ -110,16 +114,25 @@ export function checkReadiness(input: ReadinessInput): ReadinessResult {
   if (!event.social.includes(input.socialPreference)) {
     reasons.push("อีเวนต์นี้ไม่มี social option ที่เลือก");
     requiredActions.push("เลือกตัวเลือก social ที่อีเวนต์รองรับ");
+    isBlocked = true;
   }
 
   if (input.socialPreference === "beer_optional" && !input.age20Plus) {
     reasons.push("ตัวเลือกแอลกอฮอล์สงวนสำหรับผู้มีอายุ 20 ปีขึ้นไป");
     requiredActions.push("เปลี่ยนเป็น alcohol-free หรือ run only");
+    isBlocked = true;
   }
 
   if (input.hasConcerningSymptoms) {
     reasons.push("ผู้เข้าร่วมแจ้งว่ามีอาการน่ากังวล");
     requiredActions.push("งดเข้าร่วมและติดต่อผู้เชี่ยวชาญด้านสุขภาพหรือบริการฉุกเฉินตามความเหมาะสม");
+    isBlocked = true;
+  }
+
+  if (!SAFE_TRANSPORT_MODES.includes(input.transportMode)) {
+    reasons.push("แผนเดินทางกลับอยู่นอกตัวเลือกที่ปลอดภัยของกิจกรรม");
+    requiredActions.push("เลือกขนส่งสาธารณะ แท็กซี่ เดินเมื่อปลอดภัย หรือคนขับที่ไม่ดื่ม");
+    isBlocked = true;
   }
 
   if (input.socialPreference === "beer_optional" && input.transportMode === "sober_driver") {
@@ -131,12 +144,8 @@ export function checkReadiness(input: ReadinessInput): ReadinessResult {
     requiredActions.push("เตรียมน้ำหรือใช้จุดเติมน้ำของงาน");
   }
 
-  const blocked = requiredActions.some((action) =>
-    /งดเข้าร่วม|เปลี่ยนเป็น|เลือกตัวเลือก/.test(action),
-  );
-
   return {
-    status: blocked ? "blocked" : reasons.length > 0 ? "attention" : "ready",
+    status: isBlocked ? "blocked" : reasons.length > 0 ? "attention" : "ready",
     reasons: reasons.length > 0 ? reasons : ["ผ่านกฎการเข้าร่วมที่ตรวจได้จากข้อมูลที่ให้มา"],
     requiredActions,
     disclaimer: "แบบตรวจนี้เป็นกฎการเข้าร่วม ไม่ใช่การประเมินหรือวินิจฉัยทางการแพทย์",
@@ -157,6 +166,9 @@ export function validateRegistration(input: RegistrationInput): ValidationResult
   if (event && !event.paceBands.includes(input.pace)) errors.push("อีเวนต์ไม่มีกลุ่มเพซที่เลือก");
   if (event && !event.social.includes(input.socialPreference)) {
     errors.push("อีเวนต์ไม่มี social option ที่เลือก");
+  }
+  if (!SAFE_TRANSPORT_MODES.includes(input.transportMode)) {
+    errors.push("ต้องเลือกแผนเดินทางกลับที่ปลอดภัยจากตัวเลือกที่กำหนด");
   }
   if (input.socialPreference === "beer_optional" && !input.age20Plus) {
     errors.push("ต้องมีอายุ 20 ปีขึ้นไปสำหรับตัวเลือกแอลกอฮอล์");

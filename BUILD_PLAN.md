@@ -120,17 +120,17 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 
 ## 8. Acceptance criteria
 
-- [ ] Responsive human UI supports discovery, details, rules, readiness, registration, pass, and return plan.
-- [ ] At least seven meaningful WebMCP tools register with valid JSON Schemas.
-- [ ] Read-only tools are annotated correctly and return structured results.
-- [ ] Consequential registration requires a visible, explicit human confirmation.
-- [ ] WebMCP tool execution updates the same state and UI used by humans.
-- [ ] Safety and alcohol rules block under-age alcohol selection, pre-run drinking, and driving-after-drinking flows.
-- [ ] All automated tests and production build pass.
-- [ ] App listens on `127.0.0.1:5187`; port was verified unused before launch.
-- [ ] Browser smoke test proves core flow and responsive rendering.
+- [x] Human UI supports discovery, details, rules, readiness, registration, pass, and return plan.
+- [x] Nine meaningful WebMCP tools register with bounded JSON Schemas.
+- [x] Read-only tools are annotated correctly and return structured results.
+- [x] Consequential registration requires a visible, explicit human confirmation.
+- [x] WebMCP tool execution updates the same state and UI used by humans.
+- [x] Safety and alcohol rules block under-age alcohol selection, pre-run drinking, schema-bypass attempts, and driving-after-drinking flows.
+- [x] All 20 automated tests and the production build pass.
+- [x] App listens on `127.0.0.1:5187`; port was verified unused before launch.
+- [ ] Browser smoke test proves core flow, but responsive viewport evidence remains pending because the connected browser ignored viewport override.
 - [ ] WebMCP-capable browser test proves tool discovery and at least one end-to-end tool call.
-- [ ] Compliance log maps evidence to the four equally weighted judging criteria.
+- [x] Compliance log maps evidence to the four equally weighted judging criteria.
 
 ## 9. Delivery sequence
 
@@ -142,4 +142,3 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 6. Build and run on port 5187.
 7. Perform browser, accessibility, and compliance audits.
 8. Prepare deployment, public repository/license, README, and demo script.
-

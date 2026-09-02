@@ -48,10 +48,16 @@ export interface WebMcpRegistrationResult {
   error?: string;
 }
 
-const citySchema = { type: "string", enum: ["Bangkok", "Chiang Mai", "Phuket", "Khon Kaen"] };
-const paceSchema = { type: "string", enum: ["social", "steady", "tempo"] };
-const socialSchema = { type: "string", enum: ["alcohol_free", "beer_optional", "run_only"] };
-const transportSchema = { type: "string", enum: ["transit", "taxi", "walk", "sober_driver"] };
+const CITIES = ["Bangkok", "Chiang Mai", "Phuket", "Khon Kaen"] as const;
+const DISTANCES = [3, 5, 7, 10] as const;
+const PACES = ["social", "steady", "tempo"] as const;
+const SOCIAL_OPTIONS = ["alcohol_free", "beer_optional", "run_only"] as const;
+const TRANSPORT_MODES = ["transit", "taxi", "walk", "sober_driver"] as const;
+
+const citySchema = { type: "string", enum: CITIES };
+const paceSchema = { type: "string", enum: PACES };
+const socialSchema = { type: "string", enum: SOCIAL_OPTIONS };
+const transportSchema = { type: "string", enum: TRANSPORT_MODES };
 
 function assertActive(options?: { signal?: AbortSignal }) {
   if (options?.signal?.aborted) {
@@ -71,6 +77,46 @@ function booleanValue(value: unknown, field: string): boolean {
   return value;
 }
 
+function optionalBooleanValue(value: unknown, field: string): boolean | undefined {
+  return value === undefined ? undefined : booleanValue(value, field);
+}
+
+function enumValue<const T extends string>(
+  value: unknown,
+  field: string,
+  allowed: readonly T[],
+): T {
+  if (typeof value !== "string" || !allowed.includes(value as T)) {
+    throw new Error(`${field} must be one of: ${allowed.join(", ")}`);
+  }
+  return value as T;
+}
+
+function optionalEnumValue<const T extends string>(
+  value: unknown,
+  field: string,
+  allowed: readonly T[],
+): T | undefined {
+  return value === undefined ? undefined : enumValue(value, field, allowed);
+}
+
+function optionalDistanceValue(value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !DISTANCES.includes(value as (typeof DISTANCES)[number])) {
+    throw new Error(`distance_km must be one of: ${DISTANCES.join(", ")}`);
+  }
+  return value;
+}
+
+function optionalDateValue(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  const date = stringValue(value, "date", 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    throw new Error("date must use YYYY-MM-DD");
+  }
+  return date;
+}
+
 function activity(bridge: ToolUiBridge, title: string, detail: string) {
   bridge.logActivity({ source: "agent", title, detail });
 }
@@ -86,7 +132,7 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
         type: "object",
         properties: {
           city: citySchema,
-          distance_km: { type: "number", enum: [3, 5, 7, 10] },
+          distance_km: { type: "number", enum: DISTANCES },
           pace: paceSchema,
           date: { type: "string", format: "date", maxLength: 10 },
           social_preference: socialSchema,
@@ -98,12 +144,16 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       execute: async (input, options) => {
         assertActive(options);
         const filters: EventFilters = {
-          city: input.city as City | undefined,
-          distanceKm: input.distance_km as number | undefined,
-          pace: input.pace as PaceBand | undefined,
-          date: input.date as string | undefined,
-          socialPreference: input.social_preference as SocialOption | undefined,
-          alcoholFreeRequired: input.alcohol_free_required as boolean | undefined,
+          city: optionalEnumValue(input.city, "city", CITIES) as City | undefined,
+          distanceKm: optionalDistanceValue(input.distance_km),
+          pace: optionalEnumValue(input.pace, "pace", PACES) as PaceBand | undefined,
+          date: optionalDateValue(input.date),
+          socialPreference: optionalEnumValue(
+            input.social_preference,
+            "social_preference",
+            SOCIAL_OPTIONS,
+          ) as SocialOption | undefined,
+          alcoholFreeRequired: optionalBooleanValue(input.alcohol_free_required, "alcohol_free_required"),
         };
         const matches = discoverEvents(filters).map(({ event, matchReasons }) => ({
           id: event.id,
@@ -169,11 +219,13 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
         if (!event) throw new Error("Event not found");
         bridge.selectEvent(event.id);
         activity(bridge, "Agent opened event", `${event.city} · ${event.distanceKm} km`);
+        const rules = getRules();
         return {
           event,
           pace_labels: event.paceBands.map((pace) => PACE_LABELS[pace]),
           social_labels: event.social.map((option) => SOCIAL_LABELS[option]),
-          responsible_social_policy: getRules(),
+          responsible_social_policy: rules.alcoholPolicy,
+          next_tool: "Call get_event_rules before preparing registration.",
         };
       },
     },
@@ -181,7 +233,7 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       name: "get_event_rules",
       title: "Read participation and social rules",
       description:
-        "Read run safety, age, alcohol, licensed-venue, transport, health, and choice rules. Call this before preparing a registration.",
+        "Read run safety, age, alcohol, licensed-venue, transport, health, and choice rules when evaluating participation or registration.",
       inputSchema: {
         type: "object",
         properties: {
@@ -195,7 +247,8 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
         assertActive(options);
         const eventId = input.event_id ? stringValue(input.event_id, "event_id", 80) : undefined;
         if (eventId && !findEvent(eventId)) throw new Error("Event not found");
-        const result = getRules(typeof input.topic === "string" ? input.topic : undefined);
+        const topic = input.topic === undefined ? undefined : stringValue(input.topic, "topic", 40);
+        const result = getRules(topic);
         activity(bridge, "Agent checked the rules", `${result.rules.length} operational rules returned`);
         return { event_id: eventId ?? null, ...result };
       },
@@ -204,7 +257,7 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       name: "check_participation_readiness",
       title: "Check participation readiness",
       description:
-        "Apply event safety rules to user-provided declarations. This is not medical advice or diagnosis. A blocked result must not be overridden by an agent.",
+        "Apply event safety rules to user-provided declarations and return ready, attention, or blocked with next actions. This is not medical advice or diagnosis.",
       inputSchema: {
         type: "object",
         properties: {
@@ -233,8 +286,12 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
           age20Plus: booleanValue(input.age_20_plus, "age_20_plus"),
           hasConcerningSymptoms: booleanValue(input.has_concerning_symptoms, "has_concerning_symptoms"),
           hasHydrationPlan: booleanValue(input.has_hydration_plan, "has_hydration_plan"),
-          transportMode: input.transport_mode as TransportMode,
-          socialPreference: input.social_preference as SocialOption,
+          transportMode: enumValue(input.transport_mode, "transport_mode", TRANSPORT_MODES) as TransportMode,
+          socialPreference: enumValue(
+            input.social_preference,
+            "social_preference",
+            SOCIAL_OPTIONS,
+          ) as SocialOption,
         };
         const result = checkReadiness(readiness);
         activity(bridge, "Agent ran readiness check", result.status.toUpperCase());
@@ -245,7 +302,7 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       name: "get_safe_return_options",
       title: "Plan a safe return",
       description:
-        "Get event-specific public transport, taxi, walking, and sober-driver options. Never recommends driving after drinking.",
+        "Get event-specific public transport, taxi, walking, and sober-driver options, with non-driving choices for anyone selecting optional beer.",
       inputSchema: {
         type: "object",
         properties: {
@@ -260,7 +317,11 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
         assertActive(options);
         const result = safeReturnOptions(
           stringValue(input.event_id, "event_id", 80),
-          input.social_preference as SocialOption | undefined,
+          optionalEnumValue(
+            input.social_preference,
+            "social_preference",
+            SOCIAL_OPTIONS,
+          ) as SocialOption | undefined,
         );
         activity(bridge, "Agent planned the return", result.warning);
         return result;
@@ -270,7 +331,7 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       name: "prepare_run_registration",
       title: "Prepare run registration",
       description:
-        "Validate and stage a run registration in the visible page. This tool never finalizes registration; the human must review and press the confirmation button.",
+        "Validate and stage a run registration, then show the summary for the human to review and confirm in the visible page.",
       inputSchema: {
         type: "object",
         properties: {
@@ -307,10 +368,14 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
           runnerName: stringValue(input.runner_name, "runner_name", 80),
           email: stringValue(input.email, "email", 120),
           emergencyContact: stringValue(input.emergency_contact, "emergency_contact", 40),
-          pace: input.pace as PaceBand,
-          socialPreference: input.social_preference as SocialOption,
+          pace: enumValue(input.pace, "pace", PACES) as PaceBand,
+          socialPreference: enumValue(
+            input.social_preference,
+            "social_preference",
+            SOCIAL_OPTIONS,
+          ) as SocialOption,
           age20Plus: booleanValue(input.age_20_plus, "age_20_plus"),
-          transportMode: input.transport_mode as TransportMode,
+          transportMode: enumValue(input.transport_mode, "transport_mode", TRANSPORT_MODES) as TransportMode,
           rulesAccepted: booleanValue(input.rules_accepted, "rules_accepted"),
           privacyAccepted: booleanValue(input.privacy_accepted, "privacy_accepted"),
         };
@@ -328,9 +393,9 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       name: "get_my_run_passes",
       title: "Get my run passes",
       description:
-        "List run passes stored in this browser for the current user. Sensitive emergency-contact details are never returned.",
+        "List run passes stored in this browser for the current user, with emergency-contact details redacted from the result.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
-      annotations: { readOnlyHint: true, untrustedContentHint: false },
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: async (_input, options) => {
         assertActive(options);
         const registrations = readRegistrations(storage).map(({ emergencyContact: _private, ...safe }) => safe);

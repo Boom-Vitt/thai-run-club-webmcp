@@ -41,6 +41,8 @@ npm run check
 
 This runs domain, safety, privacy-redaction, WebMCP contract, browser-registration, and production-build checks.
 
+After enabling native WebMCP, run the four live-agent scenarios in [WEBMCP_LIVE_QA.md](./WEBMCP_LIVE_QA.md). They separately prove tool discovery, intent routing, schema-bypass resistance, visible human confirmation, privacy redaction, and cancellation control.
+
 ## WebMCP tools
 
 | Tool | Role | Human-control behavior |

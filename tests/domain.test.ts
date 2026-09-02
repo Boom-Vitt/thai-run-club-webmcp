@@ -74,6 +74,20 @@ describe("safety and readiness", () => {
     expect(result.options.map((option) => option.mode)).not.toContain("drive");
   });
 
+  it("blocks an unsafe transport value even if a client bypasses the schema", () => {
+    const result = checkReadiness({
+      eventId: "bkk-riverside-5",
+      age20Plus: true,
+      hasConcerningSymptoms: false,
+      hasHydrationPlan: true,
+      transportMode: "drive" as never,
+      socialPreference: "beer_optional",
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.requiredActions.join(" ")).toContain("ขนส่งสาธารณะ");
+  });
+
   it("states that the platform does not sell or give away alcohol", () => {
     const result = getRules();
     expect(result.alcoholPolicy).toContain("ไม่ขาย");
@@ -90,6 +104,16 @@ describe("human-confirmed registration", () => {
     });
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("20 ปีขึ้นไป");
+  });
+
+  it("rejects an unsafe transport value even if a client bypasses the schema", () => {
+    const result = validateRegistration({
+      ...validRegistration,
+      transportMode: "drive" as never,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toContain("เดินทางกลับที่ปลอดภัย");
   });
 
   it("stages first and creates a pass only after confirmation", () => {
