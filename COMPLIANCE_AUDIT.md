@@ -54,6 +54,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 - Server: Node process bound only to `127.0.0.1:5187` with `--strictPort`.
 - Headers: HTTP 200, `Origin-Agent-Cluster: ?1`, `Permissions-Policy: tools=(self)`.
 - Browser smoke test: passed with no console warnings or errors.
+- Local source checkpoint: Git commit `42245a3` on 2026-09-02 Asia/Bangkok; private Devpost workflow state is excluded by `.gitignore`.
 - Connected Chrome did not expose `document.modelContext`; its WebMCP testing flag still needs to be enabled manually. The in-app browser was unavailable in this environment.
 
 ## Immediate gates before completion
