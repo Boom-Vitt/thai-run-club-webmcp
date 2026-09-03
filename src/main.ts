@@ -36,6 +36,7 @@ import {
   type PassportRunPass,
   type SessionData,
 } from "./passport";
+import { interpretRunnerRequest } from "./intent";
 import { registerWebMcpTools } from "./webmcp";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -159,17 +160,27 @@ function renderShell() {
         <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">
           <div class="agent-desk-top"><span>R/ AGENT RELAY</span><strong>WEEK BOARD</strong><i id="agentIdentityMode">GUEST</i></div>
           <div class="agent-desk-intro">
-            <p>บอกเป้าหมายวันนี้</p>
-            <h2 id="agent-planner-title">อยากวิ่งแบบไหน?</h2>
+            <p>เล่าได้ตามธรรมชาติ ไม่ต้องจำคำสั่ง</p>
+            <h2 id="agent-planner-title">วันนี้อยากให้ช่วยอะไร?</h2>
           </div>
           <form class="agent-planner-form" id="agentPlannerForm" aria-label="ให้ Runner Agent จัดตารางวิ่ง">
-            <label><span>เมือง</span><select name="city"><option value="">ทุกเมือง</option><option>Bangkok</option><option>Chiang Mai</option><option>Phuket</option><option>Khon Kaen</option></select></label>
-            <label><span>ระยะ</span><select name="distance"><option value="">ทุกระยะ</option><option value="3">3 KM</option><option value="5">5 KM</option><option value="7">7 KM</option><option value="10">10 KM</option></select></label>
-            <label><span>เพซ</span><select name="pace"><option value="">ทุกเพซ</option><option value="social">Social</option><option value="steady">Steady</option><option value="tempo">Tempo</option></select></label>
-            <label><span>หลังวิ่ง</span><select name="social"><option value="">ทุกแบบ</option><option value="alcohol_free">Alcohol-free</option><option value="run_only">Run only</option><option value="beer_optional">Optional 20+</option></select></label>
-            <button type="submit"><span>✦</span> ให้ Agent จัดตาราง <b>→</b></button>
+            <label class="agent-request-label" for="runnerRequest"><span>คุยกับ Runner Agent</span><textarea id="runnerRequest" name="request" maxlength="240" rows="3" placeholder="เช่น สัปดาห์นี้อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม"></textarea></label>
+            <button type="submit"><span>✦</span> ให้ Agent คิดและจัดให้ <b>→</b></button>
+            <details class="agent-filter-details">
+              <summary>อยากระบุเอง? ปรับเมือง ระยะ เพซ และหลังวิ่ง</summary>
+              <div class="agent-filter-grid">
+                <label><span>เมือง</span><select name="city"><option value="">ทุกเมือง</option><option>Bangkok</option><option>Chiang Mai</option><option>Phuket</option><option>Khon Kaen</option></select></label>
+                <label><span>ระยะ</span><select name="distance"><option value="">ทุกระยะ</option><option value="3">3 KM</option><option value="5">5 KM</option><option value="7">7 KM</option><option value="10">10 KM</option></select></label>
+                <label><span>เพซ</span><select name="pace"><option value="">ทุกเพซ</option><option value="social">Social</option><option value="steady">Steady</option><option value="tempo">Tempo</option></select></label>
+                <label><span>หลังวิ่ง</span><select name="social"><option value="">ทุกแบบ</option><option value="alcohol_free">Alcohol-free</option><option value="run_only">Run only</option><option value="beer_optional">Optional 20+</option></select></label>
+              </div>
+            </details>
           </form>
-          <button class="agent-preset" type="button" data-agent-preset="bangkok-easy">ลองตัวอย่าง: Bangkok 5K · social pace · alcohol-free</button>
+          <div class="agent-suggestions" aria-label="ตัวอย่างที่พูดกับ Runner Agent ได้">
+            <button type="button" data-runner-request="อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม">“อยากวิ่งชิล ๆ 5 กม.”</button>
+            <button type="button" data-runner-request="ช่วยเทียบงานสาย social ที่มีทางกลับสะดวก">“ช่วยเทียบงานสาย social”</button>
+            <button type="button" data-runner-request="เปิดงานวิ่งในกรุงเทพแล้วช่วยวางทางกลับบ้าน">“ช่วยวางทางกลับบ้าน”</button>
+          </div>
           <div class="agent-plan-summary" id="agentPlanSummary" role="status" aria-live="polite"></div>
           <div class="agent-schedule-board" id="agentScheduleBoard"></div>
           <div class="agent-save-bar">
@@ -934,12 +945,26 @@ function bindUi() {
     if (data.get("distance")) input.distance_km = Number(data.get("distance"));
     if (data.get("pace")) input.pace = String(data.get("pace"));
     if (data.get("social")) input.social_preference = String(data.get("social"));
-    void executeSchedulePlan(input, `“จัดตาราง ${filterDescription({
+    const request = String(data.get("request") ?? "").trim();
+    const fallback = {
       city: input.city as City | undefined,
       distanceKm: input.distance_km as number | undefined,
       pace: input.pace as PaceBand | undefined,
       socialPreference: input.social_preference as SocialOption | undefined,
-    })} ให้ฉัน”`);
+    };
+    if (request) {
+      void runNaturalAgentRequest(request, fallback);
+    } else {
+      void executeSchedulePlan(input, `“จัดตาราง ${filterDescription(fallback)} ให้ฉัน”`);
+    }
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-runner-request]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const request = button.dataset.runnerRequest ?? "";
+      const field = document.querySelector<HTMLTextAreaElement>("#runnerRequest");
+      if (field) field.value = request;
+      void runNaturalAgentRequest(request);
+    });
   });
   document.querySelectorAll<HTMLButtonElement>("[data-agent-preset]").forEach((button) => {
     button.addEventListener("click", () => void runAgentAction(button.dataset.agentPreset ?? ""));
@@ -976,6 +1001,61 @@ async function executeSchedulePlan(input: Record<string, unknown>, prompt: strin
   } finally {
     submit?.removeAttribute("aria-busy");
     if (submit) submit.disabled = false;
+  }
+}
+
+function filtersToToolInput(filters: EventFilters): Record<string, unknown> {
+  const input: Record<string, unknown> = {};
+  if (filters.city) input.city = filters.city;
+  if (filters.distanceKm) input.distance_km = filters.distanceKm;
+  if (filters.pace) input.pace = filters.pace;
+  if (filters.socialPreference) input.social_preference = filters.socialPreference;
+  if (filters.alcoholFreeRequired) input.alcohol_free_required = true;
+  return input;
+}
+
+async function runNaturalAgentRequest(request: string, fallback: EventFilters = {}) {
+  const intent = interpretRunnerRequest(request, fallback);
+  const prompt = `“${request}”`;
+  setAgentPrompt(prompt);
+
+  if (intent.action === "show_passport") {
+    document.querySelector("#passport")?.scrollIntoView({ behavior: "smooth" });
+    showToast(state.session?.authenticated ? "เปิด Runner Passport แล้ว" : "Sign in เมื่อต้องการเปิดความจำของ Agent");
+    return;
+  }
+
+  const result = await executeSchedulePlan(filtersToToolInput(intent.filters), prompt);
+  if (!result) return;
+  const harness = window.__RUN_SOCIAL_WEBMCP__;
+  if (!harness) return;
+
+  try {
+    if (intent.action === "save_plan") {
+      await saveCurrentWeek();
+      return;
+    }
+
+    const first = result.events[0];
+    if (intent.action === "compare") {
+      const eventIds = result.events.slice(0, 3).map((event) => event.id);
+      if (eventIds.length < 2) {
+        showToast("เจอตัวเลือกเดียว ลองเล่าเงื่อนไขให้กว้างขึ้น", true);
+        return;
+      }
+      await harness.execute("compare_run_events", { event_ids: eventIds });
+      showToast(`Runner Agent เทียบ ${eventIds.length} ตัวเลือกแล้ว`);
+    } else if (intent.action === "safe_return" && first) {
+      const safeReturn = await harness.execute("get_safe_return_options", {
+        event_id: first.id,
+        social_preference: intent.filters.socialPreference ?? "alcohol_free",
+      }) as { warning?: string };
+      const summary = document.querySelector<HTMLDivElement>("#agentPlanSummary");
+      if (summary) summary.innerHTML = `<div><span>SAFE RETURN</span><strong>เลือก run และวางทางกลับแล้ว</strong></div><p>${escapeHtml(safeReturn.warning ?? "เลือกทางกลับก่อนออกวิ่ง")}</p>`;
+      showToast("Runner Agent วางทางกลับให้แล้ว");
+    }
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "Runner Agent ทำงานไม่สำเร็จ", true);
   }
 }
 

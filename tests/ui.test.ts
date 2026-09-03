@@ -43,6 +43,20 @@ describe("Runner Agent working surface", () => {
     expect(document.querySelector("#agentPromptText")?.textContent).toContain("Bangkok");
   });
 
+  it("accepts a conversational Thai request and runs the matching schedule action", async () => {
+    await import("../src/main");
+    const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;
+    const request = form.elements.namedItem("request") as HTMLTextAreaElement;
+    request.value = "อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม";
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll(".agent-schedule-row")).toHaveLength(1);
+    });
+    expect(document.querySelector("#agentPromptText")?.textContent).toContain("อยากวิ่ง 5 กม.");
+    expect(document.querySelector("#agentPlanSummary")?.textContent).toContain("Alcohol-free");
+  });
+
   it("loads a signed-in D1-backed Runner Passport and saved week", async () => {
     const session = {
       authenticated: true,

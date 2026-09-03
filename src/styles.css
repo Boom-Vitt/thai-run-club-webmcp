@@ -622,11 +622,57 @@ select:focus-visible {
 
 .agent-planner-form {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   margin: 0 1.25rem;
   border-top: 1px solid #575950;
   border-left: 1px solid #575950;
 }
+
+.agent-request-label {
+  min-height: 116px;
+}
+
+.agent-planner-form .agent-request-label > span {
+  color: var(--lime);
+}
+
+.agent-request-label textarea {
+  width: 100%;
+  min-height: 68px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--paper);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 760;
+  line-height: 1.5;
+}
+
+.agent-request-label textarea::placeholder { color: #7f8178; }
+
+.agent-filter-details {
+  border-right: 1px solid #575950;
+  border-bottom: 1px solid #575950;
+}
+
+.agent-filter-details summary {
+  padding: 0.75rem;
+  color: #aeb0a7;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.agent-filter-details summary:hover { color: var(--lime); }
+
+.agent-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid #575950;
+}
+
+.agent-filter-grid label:last-child { border-right: 0; }
 
 .agent-planner-form label {
   display: grid;
@@ -678,20 +724,25 @@ select:focus-visible {
 .agent-planner-form > button b { margin-left: auto; font-size: 1.25rem; }
 .agent-planner-form > button[aria-busy="true"] { opacity: 0.7; cursor: wait; }
 
-.agent-preset {
-  margin: 0.8rem 1.25rem 0;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid #77796f;
+.agent-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.75rem 1.25rem 0;
+}
+
+.agent-suggestions button {
+  padding: 0.48rem 0.65rem;
+  border: 1px solid #64665e;
+  border-radius: 999px;
   background: transparent;
   color: #bfc1b8;
-  font-size: 0.84rem;
-  line-height: 1.55;
-  text-align: left;
+  font-size: 0.76rem;
+  line-height: 1.35;
   cursor: pointer;
 }
 
-.agent-preset:hover { color: var(--lime); border-color: var(--lime); }
+.agent-suggestions button:hover { border-color: var(--lime); color: var(--lime); }
 
 .agent-plan-summary {
   display: flex;
@@ -2024,7 +2075,7 @@ dialog::backdrop {
   .agent-promise-grid article { min-height: 112px; }
   .agent-desk { box-shadow: 7px 7px 0 var(--blue); }
   .agent-desk-intro { display: grid; }
-  .agent-planner-form { grid-template-columns: 1fr 1fr; }
+  .agent-filter-grid { grid-template-columns: 1fr 1fr; }
   .agent-plan-summary { align-items: start; flex-direction: column; }
   .agent-plan-summary p { text-align: left; }
   .agent-save-bar { align-items: stretch; flex-direction: column; }
