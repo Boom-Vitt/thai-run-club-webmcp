@@ -9,6 +9,24 @@ function setup() {
     selectEvent: vi.fn(),
     showSchedule: vi.fn(),
     showSupportLoop: vi.fn(),
+    searchRunnerNeed: vi.fn(async (eventId, need) => ({
+      provider: "shopify_storefront_mcp" as const,
+      eventId,
+      need,
+      needLabel: "ไฟหรืออุปกรณ์สะท้อนแสง",
+      query: "reflective running safety",
+      products: [{
+        id: "gid://shopify/Product/1",
+        title: "Repairable safety light",
+        description: "Replaceable battery",
+        url: "https://runner-shop.example/products/safety-light",
+        price: { amountMinor: 89000, currency: "THB" },
+        available: true,
+      }],
+      messages: [],
+      humanConfirmationRequired: true as const,
+      nextAction: "review_on_merchant_site" as const,
+    })),
     showPendingRegistration: vi.fn(),
     refreshPasses: vi.fn(),
     readPassport: vi.fn(async () => ({ profile: null, savedWeeks: [], runPassCount: 0 })),
@@ -25,12 +43,12 @@ function setup() {
 }
 
 describe("WebMCP tool contract", () => {
-  it("exposes thirteen unique, valid tool names and serializable schemas", () => {
+  it("exposes fourteen unique, valid tool names and serializable schemas", () => {
     const { tools } = setup();
     const names = tools.map((tool) => tool.name);
 
-    expect(tools).toHaveLength(13);
-    expect(new Set(names).size).toBe(13);
+    expect(tools).toHaveLength(14);
+    expect(new Set(names).size).toBe(14);
     for (const tool of tools) {
       expect(tool.name).toMatch(/^[A-Za-z0-9_.-]{1,128}$/);
       expect(tool.name.length).toBeLessThanOrEqual(30);
@@ -84,10 +102,31 @@ describe("WebMCP tool contract", () => {
 
     expect(result).toMatchObject({
       event_id: "bkk-riverside-5",
-      merchant_handoff: { status: "not_connected", humanConfirmationRequired: true },
+      merchant_handoff: { status: "connector_ready", humanConfirmationRequired: true },
     });
     expect(bridge.showSupportLoop).toHaveBeenCalledOnce();
     expect(tool.annotations.readOnlyHint).toBe(false);
+  });
+
+  it("searches an authorized external catalog without cart or checkout", async () => {
+    const { tools, bridge } = setup();
+    const tool = tools.find((candidate) => candidate.name === "search_runner_need")!;
+    const result = await tool.execute({
+      event_id: "bkk-riverside-5",
+      need: "reflective_visibility",
+    });
+
+    expect(bridge.searchRunnerNeed).toHaveBeenCalledWith(
+      "bkk-riverside-5",
+      "reflective_visibility",
+    );
+    expect(result).toMatchObject({
+      provider: "shopify_storefront_mcp",
+      human_confirmation_required: true,
+      next_action: expect.stringContaining("No cart or checkout"),
+    });
+    expect(tool.annotations.untrustedContentHint).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("Replaceable battery");
   });
 
   it("prepares registration without finalizing it and requests visible human review", async () => {
@@ -185,6 +224,7 @@ describe("WebMCP tool contract", () => {
       ["save_run_schedule", { city: "Bangkok", pace: "social" }],
       ["get_runner_passport", {}],
       ["build_runner_support_loop", { event_id: "bkk-riverside-5" }],
+      ["search_runner_need", { event_id: "bkk-riverside-5", need: "reflective_visibility" }],
       ["discover_run_events", { city: "Bangkok", distance_km: 5 }],
       ["compare_run_events", { event_ids: ["bkk-riverside-5", "bkk-oldtown-7"] }],
       ["get_run_event_details", { event_id: "bkk-riverside-5" }],

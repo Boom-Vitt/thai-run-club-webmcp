@@ -1,10 +1,12 @@
 import type { City, EventFilters, PaceBand, SocialOption } from "./types";
+import type { CommerceNeed } from "./commerce";
 
-export type RunnerIntentAction = "plan" | "compare" | "safe_return" | "support_loop" | "save_plan" | "show_passport";
+export type RunnerIntentAction = "plan" | "compare" | "safe_return" | "support_loop" | "search_need" | "save_plan" | "show_passport";
 
 export interface RunnerIntent {
   action: RunnerIntentAction;
   filters: EventFilters;
+  commerceNeed?: CommerceNeed;
 }
 
 const cityPhrases: Array<[City, RegExp]> = [
@@ -47,10 +49,18 @@ export function interpretRunnerRequest(value: string, fallback: EventFilters = {
   if (distanceMatch) filters.distanceKm = Number(distanceMatch[1]);
 
   let action: RunnerIntentAction = "plan";
+  let commerceNeed: CommerceNeed | undefined;
   if (/passport|พาสปอร์ต|เปิด.*(?:ตาราง|แผน).*บันทึก|ดู.*(?:ตาราง|แผน).*บันทึก/i.test(request)) {
     action = "show_passport";
   } else if (/บันทึก|จำ.*(?:ตาราง|แผน)|save.*(?:week|plan|schedule)/i.test(request)) {
     action = "save_plan";
+  } else if (/ค้นหา.*(?:ของ|อุปกรณ์|ร้าน)|หา.*(?:ของที่ขาด|จากร้าน)|search.*(?:gear|catalog)|จากร้าน/i.test(request)) {
+    action = "search_need";
+    commerceNeed = /น้ำ|ขวด|hydration|bottle/i.test(request)
+      ? "reusable_hydration"
+      : /เชือก|ซ่อม|repair|lace/i.test(request)
+        ? "repair_essentials"
+        : undefined;
   } else if (/ต้องเตรียมอะไร|เอาอะไรไป|อุปกรณ์|ยืม|เติมน้ำ|ซ่อม|ก่อนซื้อ|support loop|what.*bring/i.test(request)) {
     action = "support_loop";
   } else if (/ทางกลับ|กลับบ้าน|เดินทางกลับ|safe return|กลับยังไง/i.test(request)) {
@@ -59,5 +69,5 @@ export function interpretRunnerRequest(value: string, fallback: EventFilters = {
     action = "compare";
   }
 
-  return { action, filters };
+  return { action, filters, commerceNeed };
 }

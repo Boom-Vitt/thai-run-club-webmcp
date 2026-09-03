@@ -12,5 +12,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["worker", "db", "src/data.ts", "src/types.ts"]
+  "include": ["worker", "db", "src/data.ts", "src/types.ts", "tests/worker-commerce.test.ts"]
 }

@@ -18,21 +18,21 @@ Narration:
 
 > The agent turns my city, distance, pace, and social choice into a chronological schedule I can use immediately. The same result appears on my screen, ready to open or compare.
 
-## 0:38–0:58 — Save Agent memory
+## 0:38–0:58 — Runner Commons: shop last
+
+Visual: Agent calls `build_runner_support_loop`, then—only if the authorized store domain has been configured and verified—calls `search_runner_need` for one unresolved hydration need. Show bounded external results and the “no cart or checkout” boundary.
+
+Narration:
+
+> Before commerce, the agent helps me bring, borrow, refill, repair, and give back. Only when I confirm a remaining need can it search an authorized Shopify catalog. It shows choices in the same interface and never creates a cart or checkout.
+
+## 0:58–1:14 — Save Agent memory
 
 Visual: Press **SAVE TO PASSPORT**, show the D1-backed saved-week ticket, then call `get_runner_passport`.
 
 Narration:
 
 > When I save, the same structured plan becomes persistent Agent memory. My Runner Passport remembers my home city, pace, weekly goal, saved weeks, and confirmed passes across visits.
-
-## 0:58–1:14 — Compare and share context
-
-Visual: Call `compare_run_events`, then `get_run_event_details`; open the same detail drawer in the human UI.
-
-Narration:
-
-> It compares two or three runs by date, pace, price, places, social options, and the journey home, then opens the selected event in the same interface I see.
 
 ## 1:14–1:36 — Rules and safety
 
@@ -60,16 +60,17 @@ Narration:
 
 ## 2:14–2:25 — Why WebMCP
 
-Visual: Fast montage of the thirteen Runner Agent actions, including the Runner Commons Loop, mobile layout, and tests passing.
+Visual: Fast montage of the fourteen Runner Agent actions, including the Runner Commons Loop, guarded Shopify catalog results, mobile layout, and tests passing.
 
 Narration:
 
-> Thirteen WebMCP actions let this Runner Agent scout, sort, remember, check, build a bring-borrow-refill-repair support loop, and hand off a complete run plan. WebMCP is how the agent executes these product actions; the value is the work it completes for the runner.
+> Fourteen WebMCP actions let this Runner Agent scout, sort, remember, check, reuse, and search one real remaining need without taking away human control. WebMCP is how the agent executes these product actions; the value is the work it completes for the runner.
 
 ## Recording checklist
 
 - Start on the working Week Board; no product login is required.
 - Show the real tool call in the first 15 seconds.
+- Show Shopify results only after an authorized store domain is connected and the live call has been verified; otherwise show the honest `store_required` state.
 - Use one strong end-to-end example.
 - Cut loading, typing, dead air, and repeated features.
 - Show the public URL and public repository briefly.

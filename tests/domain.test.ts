@@ -60,9 +60,16 @@ describe("Runner Commons support loop", () => {
 
     expect(loop.steps.map((step) => step.mode)).toEqual(["bring", "borrow", "refill", "repair"]);
     expect(loop.steps.find((step) => step.mode === "refill")?.action).toContain("จุดน้ำ");
-    expect(loop.unresolvedNeeds).toContain("ไฟหรือแถบสะท้อนแสง");
-    expect(loop.merchantHandoff).toMatchObject({ status: "not_connected", humanConfirmationRequired: true });
-    expect(loop.merchantHandoff.rule).toContain("หยุดก่อน cart หรือ checkout");
+    expect(loop.unresolvedNeeds).toContainEqual({
+      key: "reflective_visibility",
+      label: "ไฟหรือแถบสะท้อนแสง",
+    });
+    expect(loop.merchantHandoff).toMatchObject({
+      status: "connector_ready",
+      provider: "shopify_storefront_mcp",
+      humanConfirmationRequired: true,
+    });
+    expect(loop.merchantHandoff.rule).toContain("ไม่สร้าง cart หรือ checkout");
   });
 });
 

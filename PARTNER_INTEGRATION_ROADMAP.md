@@ -1,6 +1,6 @@
 # Partner Integration Roadmap
 
-This document describes optional next-generation adapters. None of these external platforms is connected in the current public demo, and no account, credential, purchase, deployment, or background job is implied.
+This document separates the shipped Shopify catalog adapter from optional Netlify and Render extensions. The public demo does not guess or select a merchant: Shopify search remains disconnected until the participant supplies an authorized permanent `*.myshopify.com` domain. No purchase, deployment, or background job is implied.
 
 ## Product principle: support the run, not consumption
 
@@ -15,21 +15,23 @@ The Runner Commons Loop follows this order:
 
 This makes commerce one optional handoff inside a broader circular support system. The primary outcomes are a safer run, lower waste, lower participation cost, and stronger local-club reciprocity.
 
-## Shopify adapter: needs-aware commerce handoff
+## Shopify adapter: needs-aware catalog search (implemented)
 
-**Future use:** connect a remaining support gap to Shopify's Storefront MCP or UCP-compatible catalog and cart capabilities.
+**Current use:** the Worker validates an explicit store domain, calls that store's official `/api/ucp/mcp` endpoint with `search_catalog`, normalizes a maximum of six products, and returns them to both the visible Runner Commons panel and `search_runner_need` WebMCP action.
 
 - Send a bounded category brief such as a reflective clip or reusable hydration container, never a medical claim or a hidden purchase instruction.
 - Search only after the runner asks and the bring/borrow/refill/repair steps leave a real gap.
 - Prefer local pickup, repair, rental, refill, or second-life collections when merchant data supports those attributes.
-- Keep cart creation separate from discovery and require visible human review before checkout handoff.
+- Create no cart and perform no checkout; the runner may open a safe HTTPS product link and review the merchant directly.
 - Keep the merchant as merchant of record; never process payment or alcohol in the Runner Agent.
+- Reject arbitrary hosts, URL paths, credentials, ports, and non-HTTPS store configuration to prevent the Worker from becoming an open proxy.
+
+Activation requires exactly one production environment value: `SHOPIFY_STORE_DOMAIN=your-store.myshopify.com`. Storefront MCP catalog access itself does not require an access token. The Site reports `store_required` until that value is supplied and verified; it never queries a third-party store chosen by the agent.
 
 Official foundations:
 
-- <https://shopify.dev/docs/apps/build/storefront-mcp/index>
-- <https://shopify.dev/docs/agents>
-- <https://shopify.dev/docs/agents/carts-and-checkout>
+- <https://shopify.dev/docs/apps/build/storefront-mcp/servers/storefront>
+- <https://ucp.dev/specification/shopping/catalog/>
 
 ## Netlify adapter: community route-change previews
 

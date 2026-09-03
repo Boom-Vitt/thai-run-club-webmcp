@@ -1,4 +1,5 @@
 import { CLUB_RULES, EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
+import type { CommerceNeed } from "./commerce";
 import type {
   EventFilters,
   ReadinessInput,
@@ -37,9 +38,10 @@ export interface RunnerSupportLoop {
   eventLabel: string;
   steps: RunnerSupportStep[];
   giveBack: string;
-  unresolvedNeeds: string[];
+  unresolvedNeeds: Array<{ key: CommerceNeed; label: string }>;
   merchantHandoff: {
-    status: "not_connected";
+    status: "connector_ready";
+    provider: "shopify_storefront_mcp";
     rule: string;
     humanConfirmationRequired: true;
   };
@@ -324,9 +326,13 @@ export function buildRunnerSupportLoop(eventId: string): RunnerSupportLoop {
   const welcomesNewRunners = event.accessibility.some((item) =>
     item.includes("นักวิ่งใหม่") || item.includes("ครั้งแรก"),
   );
-  const unresolvedNeeds = [
-    ...(isAfterDarkRisk ? ["ไฟหรือแถบสะท้อนแสง"] : []),
-    ...(!hasRefill || event.distanceKm >= 7 ? ["ภาชนะน้ำพกพา"] : []),
+  const unresolvedNeeds: RunnerSupportLoop["unresolvedNeeds"] = [
+    ...(isAfterDarkRisk
+      ? [{ key: "reflective_visibility" as const, label: "ไฟหรือแถบสะท้อนแสง" }]
+      : []),
+    ...(!hasRefill || event.distanceKm >= 7
+      ? [{ key: "reusable_hydration" as const, label: "ภาชนะน้ำพกพาแบบใช้ซ้ำ" }]
+      : []),
   ];
 
   return {
@@ -367,8 +373,9 @@ export function buildRunnerSupportLoop(eventId: string): RunnerSupportLoop {
       : "ส่งบันทึกจุดเสี่ยงและข้อมูลเดินทางกลับให้ผู้จัดตรวจ ก่อนอัปเดตงาน",
     unresolvedNeeds,
     merchantHandoff: {
-      status: "not_connected",
-      rule: "ค้นหาแค็ตตาล็อกเฉพาะเมื่อผู้วิ่งขอและยังมีของที่ขาด จากนั้นหยุดก่อน cart หรือ checkout เพื่อให้คนตรวจเอง",
+      status: "connector_ready",
+      provider: "shopify_storefront_mcp",
+      rule: "ค้นหาแค็ตตาล็อกจริงเฉพาะเมื่อผู้วิ่งขอและยังมีของที่ขาด จากนั้นเปิดให้คนตรวจที่ร้านเอง โดยระบบนี้ไม่สร้าง cart หรือ checkout",
       humanConfirmationRequired: true,
     },
   };

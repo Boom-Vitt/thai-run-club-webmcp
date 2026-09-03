@@ -1,6 +1,7 @@
 import "./styles.css";
 import { CLUB_RULES, EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
 import {
+  buildRunnerSupportLoop,
   cancelRegistration,
   checkReadiness,
   clearPendingRegistration,
@@ -14,6 +15,13 @@ import {
   stageRegistration,
 } from "./domain";
 import type { RunnerSupportLoop } from "./domain";
+import {
+  getCommerceStatus,
+  searchCommerceCatalog,
+  type CommerceNeed,
+  type CommerceSearchResult,
+  type CommerceStatus,
+} from "./commerce";
 import type {
   ActivityEntry,
   City,
@@ -51,6 +59,8 @@ const state: {
   session: SessionData | null;
   passport: PassportData | null;
   passportStatus: "loading" | "guest" | "ready" | "error";
+  commerceStatus: CommerceStatus | null;
+  activeSupportLoop: RunnerSupportLoop | null;
 } = {
   filters: {},
   selectedEventId: null,
@@ -67,6 +77,8 @@ const state: {
   session: null,
   passport: null,
   passportStatus: "loading",
+  commerceStatus: null,
+  activeSupportLoop: null,
 };
 
 function escapeHtml(value: string): string {
@@ -140,14 +152,14 @@ function renderShell() {
         <div class="hero-copy">
           <p class="eyebrow"><span></span> RUNNER AGENT · GUEST READY · PASSPORT OPTIONAL</p>
           <h1 id="hero-title">YOUR RUN WEEK.<br /><em>READY TO GO.</em></h1>
-          <p class="hero-lead">เพื่อนวิ่งที่ช่วยหา run ให้ตรงเพซ จัดตาราง เปรียบเทียบงาน เช็กความพร้อม วางทางกลับ และเตรียม Run Pass ให้คุณตรวจ—เปิดแล้วใช้ได้ทันที หรือ sign in เพื่อให้ Agent จำสัปดาห์ของคุณ</p>
+          <p class="hero-lead">เพื่อนวิ่งที่ช่วยหา run ให้ตรงเพซ จัดตาราง เช็กความพร้อม วางทางกลับ และจัดของแบบ bring · borrow · refill · repair ก่อนค้นหาเฉพาะสิ่งที่ยังขาด—เปิดแล้วใช้ได้ทันที หรือ sign in เพื่อให้ Agent จำสัปดาห์ของคุณ</p>
           <div class="hero-actions">
             <a class="button button-primary" href="#agent-planner">ให้ Agent จัดตาราง <span>↘</span></a>
             <a class="button button-ghost" href="#events">ดู run ทั้งหมด <span>→</span></a>
           </div>
           <div class="hero-proof" aria-label="ข้อมูลสำคัญ">
             <span><strong>${EVENTS.length}</strong> runs in schedule</span>
-            <span><strong>13</strong> agent actions</span>
+            <span><strong>14</strong> agent actions</span>
             <span><strong>D1</strong> runner memory</span>
             <span><strong>1</strong> human final call</span>
           </div>
@@ -155,7 +167,7 @@ function renderShell() {
             <article><span>01 / SCOUT</span><strong>หา run ที่เข้ากับคุณ</strong><p>เมือง ระยะ เพซ วัน และ social choice</p></article>
             <article><span>02 / SORT</span><strong>จัดตารางและเทียบตัวเลือก</strong><p>เวลา ราคา ที่ว่าง และเส้นทางกลับ</p></article>
             <article><span>03 / CHECK</span><strong>เช็กก่อนออกวิ่ง</strong><p>กฎ ความพร้อม น้ำ และแผนเดินทาง</p></article>
-            <article><span>04 / HANDOFF</span><strong>เตรียมให้ คุณเป็นคนยืนยัน</strong><p>Agent ส่งไม้ต่อก่อนสร้าง Run Pass</p></article>
+            <article><span>04 / COMMONS</span><strong>ใช้ของเดิมก่อนค้นหาของใหม่</strong><p>Bring · borrow · refill · repair · search the gap</p></article>
           </div>
         </div>
         <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">
@@ -194,7 +206,7 @@ function renderShell() {
       </section>
 
       <section class="ticker" aria-label="หลักการกิจกรรม">
-        <div>BUILD MY WEEK <span>✦</span> FIND MY PACE <span>✦</span> CHECK MY RUN <span>✦</span> PLAN MY WAY HOME <span>✦</span> HAND ME THE FINAL CALL <span>✦</span></div>
+        <div>BUILD MY WEEK <span>✦</span> USE WHAT I HAVE <span>✦</span> BORROW · REFILL · REPAIR <span>✦</span> SEARCH ONLY THE GAP <span>✦</span> HAND ME THE FINAL CALL <span>✦</span></div>
       </section>
 
       <section class="passport-section section-shell" id="passport" aria-labelledby="passport-title">
@@ -284,7 +296,7 @@ function renderShell() {
             </div>
           </div>
           <div class="agent-console" aria-label="WebMCP activity">
-            <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">13 actions</small></div>
+            <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">14 actions</small></div>
             <div class="console-prompt">
               <span>YOU</span>
               <p id="agentPromptText">“เปิดตารางวิ่งทั้งหมด แล้วช่วยจัดลำดับสิ่งที่ฉันทำต่อได้”</p>
@@ -609,6 +621,21 @@ function renderAgentSchedule(filters: EventFilters) {
 function renderRunnerSupportLoop(loop: RunnerSupportLoop) {
   const panel = document.querySelector<HTMLElement>("#runnerSupportLoop");
   if (!panel) return;
+  state.activeSupportLoop = loop;
+  const status = state.commerceStatus;
+  const statusLabel = status?.configured
+    ? `CATALOG MCP CONNECTED · ${status.storeName?.toUpperCase()}`
+    : status?.state === "invalid_configuration"
+      ? "STORE CONNECTION NEEDS FIXING"
+      : "CONNECTOR READY · STORE REQUIRED";
+  const merchantControls = loop.unresolvedNeeds.length === 0
+    ? `<p>แผนนี้ไม่มีของที่ต้องค้นหาเพิ่ม ใช้ Runner Commons ต่อได้โดยไม่ต้องเปิดร้านค้า</p>`
+    : status?.configured
+      ? `<form class="merchant-search-form" id="merchantSearchForm">
+          <label><span>ของที่ยังขาด</span><select name="need">${loop.unresolvedNeeds.map((need) => `<option value="${need.key}">${escapeHtml(need.label)}</option>`).join("")}</select></label>
+          <button type="submit">ค้นหาแค็ตตาล็อกจริง <b>↗</b></button>
+        </form>`
+      : `<p>ตัวเชื่อมต่อทำงานแล้ว แต่ยังไม่ผูกร้านพันธมิตร จึงยังไม่ส่งคำค้นไปยังร้านภายนอก</p>`;
   panel.hidden = false;
   panel.innerHTML = `
     <div class="support-loop-head"><div><span>RUNNER COMMONS / SHOP LAST</span><strong>${escapeHtml(loop.eventLabel)}</strong></div><b>↺</b></div>
@@ -617,7 +644,84 @@ function renderRunnerSupportLoop(loop: RunnerSupportLoop) {
         <article><small>0${index + 1} / ${step.mode.toUpperCase()}</small><strong>${escapeHtml(step.title)}</strong><p>${escapeHtml(step.action)}</p><em>${escapeHtml(step.reason)}</em></article>`).join("")}
     </div>
     <div class="support-loop-giveback"><span>GIVE BACK</span><p>${escapeHtml(loop.giveBack)}</p></div>
-    <div class="support-loop-handoff"><span>NEXT CONNECTOR / HUMAN FIRST</span><p>${escapeHtml(loop.merchantHandoff.rule)}</p></div>`;
+    <div class="support-loop-handoff"><span>NEXT CONNECTOR / HUMAN FIRST</span><p>${escapeHtml(loop.merchantHandoff.rule)}</p></div>
+    <section class="merchant-connector" aria-labelledby="merchantConnectorTitle">
+      <div><span id="merchantConnectorTitle">${escapeHtml(statusLabel)}</span><strong>NEED, NOT MERCH.</strong></div>
+      ${merchantControls}
+      <div class="merchant-results" id="merchantSearchResults" aria-live="polite"></div>
+    </section>`;
+  bindMerchantSearch(loop);
+}
+
+function formatMerchantPrice(price: CommerceSearchResult["products"][number]["price"]): string {
+  if (!price) return "ดูราคาที่ร้าน";
+  try {
+    return new Intl.NumberFormat("th-TH", {
+      style: "currency",
+      currency: price.currency,
+    }).format(price.amountMinor / 100);
+  } catch {
+    return `${price.amountMinor / 100} ${price.currency}`;
+  }
+}
+
+function renderMerchantSearchResult(result: CommerceSearchResult) {
+  const target = document.querySelector<HTMLDivElement>("#merchantSearchResults");
+  if (!target) return;
+  const products = result.products.length > 0
+    ? result.products.map((product) => `
+        <article class="merchant-result-card">
+          <small>${product.available === false ? "UNAVAILABLE" : "MERCHANT RESULT"}</small>
+          <strong>${escapeHtml(product.title)}</strong>
+          <p>${escapeHtml(product.description || "ตรวจรายละเอียด เงื่อนไข และความเหมาะสมกับร้านโดยตรง")}</p>
+          <div><b>${escapeHtml(formatMerchantPrice(product.price))}</b>${product.url ? `<a href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">ตรวจที่ร้าน ↗</a>` : ""}</div>
+        </article>`).join("")
+    : `<div class="merchant-empty"><strong>ร้านนี้ยังไม่มีผลลัพธ์ที่ตรง</strong><p>กลับไปใช้ ยืม เติม หรือซ่อม โดยไม่สร้างตะกร้า</p></div>`;
+  target.innerHTML = `
+    <div class="merchant-result-head"><span>LIVE EXTERNAL RESULTS</span><strong>${escapeHtml(result.needLabel)}</strong><p>${result.products.length} รายการ · ยังไม่มี cart หรือ checkout</p></div>
+    <div class="merchant-result-grid">${products}</div>`;
+}
+
+async function searchRunnerNeed(eventId: string, need: CommerceNeed): Promise<CommerceSearchResult> {
+  if (state.activeSupportLoop?.eventId !== eventId) {
+    renderRunnerSupportLoop(buildRunnerSupportLoop(eventId));
+  }
+  const target = document.querySelector<HTMLDivElement>("#merchantSearchResults");
+  if (target) target.innerHTML = `<div class="merchant-loading"><span></span><p>กำลังถาม Shopify Storefront MCP…</p></div>`;
+  try {
+    const result = await searchCommerceCatalog({ eventId, need });
+    renderMerchantSearchResult(result);
+    return result;
+  } catch (error) {
+    if (target) {
+      const message = error instanceof Error ? error.message : "ค้นหาแค็ตตาล็อกไม่สำเร็จ";
+      target.innerHTML = `<div class="merchant-empty is-error"><strong>ยังค้นหาของจริงไม่ได้</strong><p>${escapeHtml(message)}</p></div>`;
+    }
+    throw error;
+  }
+}
+
+function bindMerchantSearch(loop: RunnerSupportLoop) {
+  document.querySelector<HTMLFormElement>("#merchantSearchForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const need = String(new FormData(form).get("need") ?? "") as CommerceNeed;
+    const button = form.querySelector<HTMLButtonElement>("button[type='submit']");
+    if (button) button.disabled = true;
+    void searchRunnerNeed(loop.eventId, need)
+      .then((result) => showToast(`พบ ${result.products.length} รายการให้คุณตรวจเอง`))
+      .catch((error) => showToast(error instanceof Error ? error.message : "ค้นหาไม่สำเร็จ", true))
+      .finally(() => { if (button) button.disabled = false; });
+  });
+}
+
+async function initializeCommerceStatus() {
+  try {
+    state.commerceStatus = await getCommerceStatus();
+  } catch {
+    state.commerceStatus = null;
+  }
+  if (state.activeSupportLoop) renderRunnerSupportLoop(state.activeSupportLoop);
 }
 
 function renderEvents() {
@@ -1062,9 +1166,20 @@ async function runNaturalAgentRequest(request: string, fallback: EventFilters = 
       }
       await harness.execute("compare_run_events", { event_ids: eventIds });
       showToast(`Runner Agent เทียบ ${eventIds.length} ตัวเลือกแล้ว`);
-    } else if (intent.action === "support_loop" && first) {
-      await harness.execute("build_runner_support_loop", { event_id: first.id });
-      showToast("Runner Commons Loop พร้อมแล้ว");
+    } else if ((intent.action === "support_loop" || intent.action === "search_need") && first) {
+      const support = await harness.execute("build_runner_support_loop", { event_id: first.id }) as {
+        unresolved_needs?: Array<{ key?: CommerceNeed }>;
+      };
+      if (intent.action === "search_need") {
+        const need = intent.commerceNeed ?? support.unresolved_needs?.[0]?.key ?? "repair_essentials";
+        const merchant = await harness.execute("search_runner_need", {
+          event_id: first.id,
+          need,
+        }) as { products?: unknown[] };
+        showToast(`พบ ${merchant.products?.length ?? 0} รายการให้คุณตรวจเอง`);
+      } else {
+        showToast("Runner Commons Loop พร้อมแล้ว");
+      }
     } else if (intent.action === "safe_return" && first) {
       const safeReturn = await harness.execute("get_safe_return_options", {
         event_id: first.id,
@@ -1202,6 +1317,7 @@ async function initializeWebMcp() {
     selectEvent: (eventId) => openEvent(eventId, "agent"),
     showSchedule: renderAgentSchedule,
     showSupportLoop: renderRunnerSupportLoop,
+    searchRunnerNeed,
     showPendingRegistration: showPendingConfirmation,
     refreshPasses,
     readPassport: readPassportForAgent,
@@ -1214,7 +1330,7 @@ async function initializeWebMcp() {
 
   const status = document.querySelector<HTMLDivElement>("#webMcpStatus");
   const toolCount = document.querySelector<HTMLElement>("#toolCount");
-  if (toolCount) toolCount.textContent = `${result.registered.length || 13} actions`;
+  if (toolCount) toolCount.textContent = `${result.registered.length || 14} actions`;
   if (status) {
     status.classList.toggle("is-live", result.supported);
     status.classList.toggle("is-fallback", !result.supported);
@@ -1238,6 +1354,7 @@ renderActivity();
 refreshPasses();
 bindUi();
 void initializePassport();
+void initializeCommerceStatus();
 
 const pending = readPendingRegistration(localStorage);
 if (pending) showPendingConfirmation(pending);

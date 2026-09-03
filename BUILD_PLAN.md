@@ -127,6 +127,7 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 - D1 persistence for profiles, saved weeks, and signed-in Run Passes; `localStorage` remains only for guest passes and staged confirmation.
 - Drizzle-owned schema migrations with indexed per-runner reads.
 - Imperative WebMCP registration through `document.modelContext.registerTool()`.
+- Server-side, search-only Shopify Storefront MCP adapter with explicit store-domain validation and no cart or checkout action.
 - WebMCP compatibility fallback and a development-only in-page tool harness for deterministic verification.
 - Vitest for domain logic, schemas, tool execution, safety gates, and persistence behavior.
 - Production build served on dedicated port `5187` with origin-isolation-friendly headers.
@@ -134,7 +135,7 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 ## 8. Acceptance criteria
 
 - [x] Human UI supports discovery, details, rules, readiness, registration, pass, and return plan.
-- [x] Thirteen meaningful WebMCP tools register with bounded JSON Schemas.
+- [x] Fourteen meaningful WebMCP tools register with bounded JSON Schemas.
 - [x] Read-only tools are annotated correctly and return structured results.
 - [x] Consequential registration requires a visible, explicit human confirmation.
 - [x] WebMCP tool execution updates the same state and UI used by humans.

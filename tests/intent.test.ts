@@ -39,4 +39,12 @@ describe("natural runner requests", () => {
   it("recognizes a circular preparation request", () => {
     expect(interpretRunnerRequest("งานนี้ต้องเตรียมอะไร ยืมหรือเติมก่อนซื้อได้ไหม").action).toBe("support_loop");
   });
+
+  it("routes an explicit merchant request to needs-first catalog search", () => {
+    expect(interpretRunnerRequest("กรุงเทพ 5 กม. ช่วยหาขวดน้ำที่ขาดจากร้านให้ด้วย")).toMatchObject({
+      action: "search_need",
+      commerceNeed: "reusable_hydration",
+      filters: { city: "Bangkok", distanceKm: 5 },
+    });
+  });
 });

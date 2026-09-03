@@ -1,4 +1,5 @@
 import { EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
+import { COMMERCE_NEEDS, type CommerceNeed, type CommerceSearchResult } from "./commerce";
 import {
   buildRunnerSupportLoop,
   checkReadiness,
@@ -40,6 +41,7 @@ export interface ToolUiBridge {
   selectEvent: (eventId: string) => void;
   showSchedule: (filters: EventFilters) => void;
   showSupportLoop: (loop: RunnerSupportLoop) => void;
+  searchRunnerNeed: (eventId: string, need: CommerceNeed) => Promise<CommerceSearchResult>;
   showPendingRegistration: (input: RegistrationInput) => void;
   refreshPasses: () => void;
   readPassport: () => Promise<unknown>;
@@ -266,6 +268,49 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
           give_back: loop.giveBack,
           unresolved_needs: loop.unresolvedNeeds,
           merchant_handoff: loop.merchantHandoff,
+        };
+      },
+    },
+    {
+      name: "search_runner_need",
+      title: "Search a remaining runner need",
+      description:
+        "Search the connected Shopify Storefront MCP catalog for one runner-confirmed gap after bring, borrow, refill, and repair have been checked. Updates the visible Runner Commons panel with external merchant results. Never creates a cart or checkout.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          event_id: { type: "string", enum: EVENTS.map((event) => event.id) },
+          need: { type: "string", enum: COMMERCE_NEEDS },
+        },
+        required: ["event_id", "need"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: false, untrustedContentHint: true },
+      execute: async (input, options) => {
+        assertActive(options);
+        const eventId = enumValue(input.event_id, "event_id", EVENTS.map((event) => event.id));
+        const need = enumValue(input.need, "need", COMMERCE_NEEDS) as CommerceNeed;
+        const result = await bridge.searchRunnerNeed(eventId, need);
+        activity(
+          bridge,
+          "Agent searched a real merchant catalog",
+          `${result.products.length} results · human review before leaving Runner Commons`,
+        );
+        return {
+          provider: result.provider,
+          event_id: result.eventId,
+          need: result.need,
+          need_label: result.needLabel,
+          products: result.products.slice(0, 6).map((product) => ({
+            id: product.id,
+            title: product.title,
+            url: product.url,
+            price: product.price,
+            available: product.available,
+          })),
+          messages: result.messages,
+          human_confirmation_required: true,
+          next_action: "Review a product on the merchant site. No cart or checkout was created.",
         };
       },
     },

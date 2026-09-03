@@ -6,7 +6,7 @@ Run this checklist in a fresh supported browser session before recording or subm
 
 1. Start the production preview with `npm run preview`.
 2. Open `http://127.0.0.1:5187` in ChatGPT's in-app browser, or Chrome 149+ with `chrome://flags/#enable-webmcp-testing` enabled and Chrome relaunched.
-3. Confirm the page status reads **Runner Agent connected via WebMCP** and **13 actions ready for the browser agent**. A local-planner status is a failed native prerequisite, not a passing WebMCP test.
+3. Confirm the page status reads **Runner Agent connected via WebMCP** and **14 actions ready for the browser agent**. A local-planner status is a failed native prerequisite, not a passing WebMCP test.
 4. Start with no stored run pass, or use a fresh browser profile.
 
 ## Eval 1 — Tool discovery and intent routing
@@ -17,7 +17,7 @@ Prompt:
 
 Expected evidence:
 
-- Agent discovers all thirteen tools from `document.modelContext`.
+- Agent discovers all fourteen tools from `document.modelContext`.
 - Agent calls `discover_run_events` with the runner's structured constraints.
 - Agent calls `plan_run_schedule` with structured filters and the visible Week Board updates.
 - Agent uses `compare_run_events` only when at least two valid event IDs exist; otherwise it explains that one exact match was found.
@@ -50,8 +50,24 @@ Expected evidence:
 - Agent calls `build_runner_support_loop` with the selected event ID.
 - The visible **Runner Commons / Shop Last** panel shows bring, borrow, refill, repair, and give-back steps.
 - Output identifies only unresolved need categories, not products or brands.
-- The merchant adapter reports `not_connected` and requires human confirmation.
+- Without `SHOPIFY_STORE_DOMAIN`, the merchant adapter reports `store_required` and sends no external request.
 - No product search, cart, checkout, payment, or external account action occurs.
+
+## Eval 2C — Explicit, search-only Shopify catalog handoff
+
+Run this evaluation only after the participant has configured an authorized permanent `*.myshopify.com` domain.
+
+Prompt:
+
+> I checked what I can bring, borrow, refill, and repair. Search the connected store for my remaining reusable hydration need for the Bangkok 5K. Do not create a cart or checkout.
+
+Expected evidence:
+
+- Agent calls `build_runner_support_loop`, then `search_runner_need` with the exact event ID and `reusable_hydration` category.
+- The Worker calls only the configured store's HTTPS `/api/ucp/mcp` endpoint with `search_catalog` and a maximum of six results.
+- External results appear in the same visible Runner Commons panel with price, availability, and safe merchant links when supplied by Shopify.
+- Output is labeled untrusted external content and requires human review.
+- No cart, checkout, payment, purchase, or alcohol product action occurs.
 
 ## Eval 3 — Agent prepares, human confirms
 
@@ -112,7 +128,7 @@ Capture the following before claiming native WebMCP completion:
 
 - Browser and exact version.
 - Live URL and test time in Asia/Bangkok.
-- Screenshot showing the live thirteen-action status.
+- Screenshot showing the live fourteen-action status.
 - Tool names returned by native discovery.
 - Inputs and outputs for all five evals.
 - Screenshot of the visible pending-confirmation dialog and confirmed pass.

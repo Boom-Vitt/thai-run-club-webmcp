@@ -16,5 +16,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "tests", "vite.config.ts", "drizzle.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "drizzle.config.ts"],
+  "exclude": ["tests/worker-commerce.test.ts"]
 }

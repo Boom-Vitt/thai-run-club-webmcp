@@ -8,8 +8,8 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 
 | Requirement | Status | Evidence | Remaining work |
 | --- | --- | --- | --- |
-| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers thirteen imperative tools; 34 automated tests pass; mocked browser integration verifies all thirteen `registerTool()` calls; the no-login Week Board and Runner Commons Loop execute the same tool paths | Enable WebMCP in a supported controlled browser and capture live tool discovery/execution evidence |
-| Meaningful WebMCP leverage | PASS (code) | Scheduling, persistent memory, circular support, discovery, comparison, details, rules, readiness, safe return, staged registration, pass lookup, and cancellation use bounded schemas and shared domain logic | Live browser evidence still required for submission proof |
+| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers fourteen imperative tools; 45 automated tests pass; mocked browser integration verifies all fourteen `registerTool()` calls; the no-login Week Board, Runner Commons Loop, and guarded catalog handoff execute the same tool paths | Relaunch Chrome after enabling WebMCP and capture live tool discovery/execution evidence |
+| Meaningful WebMCP leverage | PASS (code) | Scheduling, persistent memory, circular support, guarded merchant search, discovery, comparison, details, rules, readiness, safe return, staged registration, pass lookup, and cancellation use bounded schemas and shared domain logic | Live browser evidence still required for submission proof |
 | Complete human product experience | PASS | Public Chrome smoke tests covered natural-language planning and the production API; prior flow evidence covers details, under-age block, staged confirmation, and confirmed Run Pass behavior | Capture native WebMCP evidence after enabling the Chrome flag |
 | Human/agent shared context | PASS (code) | `get_run_event_details` opens the visible drawer; `prepare_run_registration` opens the confirmation UI; activity log records agent actions | Capture these actions from a real WebMCP client |
 | Consequential-action control | PASS | Registration can only be staged by tool; finalization requires the visible human button; cancellation requires `confirmed: true` |
@@ -49,18 +49,18 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 - Node.js: v22.23.2.
 - Chrome: 152.0.7977.65.
 - Production build: Vite 8.2.2, successful.
-- Automated verification: 5 test files, 34 tests, all passed, including natural-language planning, Runner Commons UI, all thirteen tool contracts, D1 APIs, and the recommended 1.5K-character output budget for representative tool calls.
+- Automated verification: 7 test files, 45 tests, all passed, including natural-language planning, Runner Commons UI, Shopify request/response boundaries, disconnected Worker API behavior, all fourteen tool contracts, D1 APIs, and the recommended 1.5K-character output budget for representative tool calls.
 - Security audit: npm reported 0 known vulnerabilities at install time.
 - Server: Node process bound only to `127.0.0.1:5187` with `--strictPort`; a deliberate second-instance test exited nonzero with `Port 5187 is already in use` instead of selecting another port.
-- Headers: HTTP 200, `Origin-Agent-Cluster: ?1`, `Permissions-Policy: tools=(self)`.
+- Runtime context: local preview returned HTTP 200 and Chrome reported `window.originAgentCluster === true`; the `tools` permissions policy defaults to `self`. The hosting proxy did not echo the optional Vite header configuration, so native `document.modelContext` remains the authoritative pass/fail signal.
 - Public browser smoke test: natural-language Bangkok 5K planning returned one matching run; the public Worker session endpoint returned JSON.
-- Connected Chrome still does not expose `document.modelContext`; the WebMCP testing flag must be enabled manually and Chrome relaunched before native evidence can pass.
+- Computer Use enabled Chrome's **WebMCP for testing** flag. Native evidence remains pending until Chrome has relaunched without a concurrent user interaction and the Site reports the fourteen-tool WebMCP connection.
 - Sites production deployment is public at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site`, with Worker routing and the `DB` binding active.
 
 ## Immediate gates before completion
 
 1. Participant replies exact `yes` to the official Devpost rules gate.
-2. Enable WebMCP testing in Chrome 149+ or provide ChatGPT's in-app browser, then verify live discovery and execution.
+2. Complete the Chrome relaunch, then verify native WebMCP discovery and execution.
 3. Choose the final project name.
 4. Publish the source repository and verify logged-out visibility plus MIT license detection.
 5. Record/publish the demo and complete Devpost submission before the deadline.

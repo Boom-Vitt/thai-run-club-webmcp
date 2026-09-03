@@ -69,7 +69,62 @@ describe("Runner Agent working surface", () => {
     });
     expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("RUNNER COMMONS");
     expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("ยืมในคลับ");
-    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("หยุดก่อน cart หรือ checkout");
+    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("ไม่สร้าง cart หรือ checkout");
+    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("STORE REQUIRED");
+  });
+
+  it("searches a connected catalog from natural language and renders external results", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      const data = url.endsWith("/api/commerce/status")
+        ? {
+            provider: "shopify_storefront_mcp",
+            configured: true,
+            state: "ready",
+            storeName: "runner-circular",
+            capabilities: ["catalog_search"],
+            boundary: "search_only_no_cart_or_checkout",
+          }
+        : url.endsWith("/api/commerce/search")
+          ? {
+              provider: "shopify_storefront_mcp",
+              eventId: "bkk-riverside-5",
+              need: "reflective_visibility",
+              needLabel: "ไฟหรืออุปกรณ์สะท้อนแสง",
+              query: "reflective running safety",
+              products: [{
+                id: "gid://shopify/Product/1",
+                title: "Repairable safety light",
+                description: "เปลี่ยนแบตเตอรี่ได้",
+                url: "https://runner-circular.example/products/safety-light",
+                price: { amountMinor: 89000, currency: "THB" },
+                available: true,
+              }],
+              messages: [],
+              humanConfirmationRequired: true,
+              nextAction: "review_on_merchant_site",
+            }
+          : { authenticated: false, user: null, profile: null };
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }));
+
+    await import("../src/main");
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain("14 agent actions");
+    });
+
+    const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;
+    const request = form.elements.namedItem("request") as HTMLTextAreaElement;
+    request.value = "กรุงเทพ 5 กม. ช่วยหาของที่ขาดจากร้านให้ด้วย";
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelector("#merchantSearchResults")?.textContent).toContain("Repairable safety light");
+    });
+    expect(document.querySelector("#merchantSearchResults")?.textContent).toContain("ยังไม่มี cart หรือ checkout");
   });
 
   it("loads a signed-in D1-backed Runner Passport and saved week", async () => {

@@ -1,8 +1,10 @@
 import { EVENTS } from "../src/data";
+import { searchShopifyCatalog, ShopifyMcpError, shopifyCommerceStatus, validateCommerceNeed } from "./shopify";
 import type { City, EventFilters, PaceBand, Registration, RegistrationInput, SocialOption } from "../src/types";
 
 interface Env {
   DB: D1Database;
+  SHOPIFY_STORE_DOMAIN?: string;
 }
 
 interface AuthUser {
@@ -359,6 +361,20 @@ async function cancelPass(request: Request, env: Env, passId: string): Promise<R
   return json({ pass: { id: passId, status: "cancelled", updatedAt: now } });
 }
 
+async function commerceSearch(request: Request, env: Env): Promise<Response> {
+  const body = await bodyObject(request);
+  const eventId = requiredString(body.eventId, "event_id", 80);
+  if (!EVENTS.some((event) => event.id === eventId)) {
+    throw new ApiError(400, "unknown_event", "ไม่พบอีเวนต์สำหรับค้นหาของที่ขาด");
+  }
+  const need = validateCommerceNeed(body.need);
+  return json(await searchShopifyCatalog({
+    storeDomain: env.SHOPIFY_STORE_DOMAIN,
+    eventId,
+    need,
+  }));
+}
+
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/")) return new Response(null, { status: 404 });
@@ -367,10 +383,16 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   if (request.method === "GET" && url.pathname === "/api/session") return sessionResponse(request, env);
+  if (request.method === "GET" && url.pathname === "/api/commerce/status") {
+    return json(shopifyCommerceStatus(env.SHOPIFY_STORE_DOMAIN));
+  }
   if (request.method === "GET" && url.pathname === "/api/passport") return passportResponse(request, env);
   if (request.method === "PUT" && url.pathname === "/api/profile") return saveProfile(request, env);
   if (request.method === "POST" && url.pathname === "/api/plans") return savePlan(request, env);
   if (request.method === "POST" && url.pathname === "/api/passes") return createPass(request, env);
+  if (request.method === "POST" && url.pathname === "/api/commerce/search") {
+    return commerceSearch(request, env);
+  }
 
   const cancelMatch = url.pathname.match(/^\/api\/passes\/([^/]+)\/cancel$/);
   if (request.method === "POST" && cancelMatch) {
@@ -386,6 +408,9 @@ export default {
       return await route(request, env);
     } catch (error) {
       if (error instanceof ApiError) {
+        return json({ error: { code: error.code, message: error.message } }, { status: error.status });
+      }
+      if (error instanceof ShopifyMcpError) {
         return json({ error: { code: error.code, message: error.message } }, { status: error.status });
       }
       console.error("Runner API error", error);
