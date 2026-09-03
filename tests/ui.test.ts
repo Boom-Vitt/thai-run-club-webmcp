@@ -26,10 +26,11 @@ describe("Runner Agent working surface", () => {
     await Promise.resolve();
 
     expect(document.querySelector("#hero-title")?.textContent).toContain("Plan your next run");
-    expect(document.querySelector(".run-world")?.getAttribute("aria-label")).toContain("running shoe");
-    expect(document.querySelector(".run-world")?.textContent).toContain("RUN ROUTE");
+    expect(document.querySelector(".run-world")?.getAttribute("aria-label")).toContain("motion field");
+    expect(document.querySelector(".run-world")?.textContent).toContain("THAI MOTION");
     expect(document.querySelector(".run-world")?.textContent).toContain("START");
     expect(document.querySelector(".run-world")?.textContent).toContain("FINISH");
+    expect(document.querySelector(".fallback-shoe")).toBeNull();
     expect(document.querySelectorAll(".agent-schedule-row")).toHaveLength(6);
 
     const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;

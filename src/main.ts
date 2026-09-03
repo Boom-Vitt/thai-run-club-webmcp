@@ -191,11 +191,55 @@ function renderShell() {
             <a class="button button-ghost" href="#events">${tr("View routes", "ดูเส้นทาง", "查看路线")} <span>→</span></a>
           </div>
         </div>
-        <div class="run-world" role="img" aria-label="${tr("An original running shoe moving from start to finish on a clear route", "รองเท้าวิ่งต้นฉบับเคลื่อนจากจุดเริ่มถึงเส้นชัยบนเส้นทางที่ชัดเจน", "原创跑鞋沿清晰路线从起点前往终点")}">
+        <div class="run-world" role="img" aria-label="${tr("An abstract Thai red, white, and blue motion field framing a clear running route", "สนามการเคลื่อนไหวแบบนามธรรมสีแดง ขาว และน้ำเงิน ล้อมเส้นทางวิ่งที่ชัดเจน", "红白蓝泰式动态视觉环绕清晰跑步路线")}">
           <div class="run-world-stage" data-run-world>
-            <div class="run-world-fallback" aria-hidden="true"><span class="fallback-route"></span><span class="fallback-shoe"></span><i class="fallback-start"></i><b class="fallback-finish"></b></div>
+            <svg class="thai-motion-field" viewBox="0 0 760 560" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id="routeGlow" x1="0" y1="1" x2="1" y2="0">
+                  <stop offset="0" stop-color="#f2c14e" />
+                  <stop offset="0.55" stop-color="#fff4c9" />
+                  <stop offset="1" stop-color="#f2c14e" />
+                </linearGradient>
+                <radialGradient id="fieldGlow" cx="50%" cy="45%" r="58%">
+                  <stop offset="0" stop-color="#1f4fd6" stop-opacity="0.34" />
+                  <stop offset="0.52" stop-color="#0b1f4f" stop-opacity="0.08" />
+                  <stop offset="1" stop-color="#020817" stop-opacity="0" />
+                </radialGradient>
+                <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="8" />
+                </filter>
+                <pattern id="microGrid" width="42" height="42" patternUnits="userSpaceOnUse">
+                  <path d="M42 0H0V42" fill="none" stroke="#ffffff" stroke-opacity="0.055" stroke-width="1" />
+                </pattern>
+              </defs>
+              <rect width="760" height="560" fill="url(#fieldGlow)" />
+              <rect width="760" height="560" fill="url(#microGrid)" />
+              <g class="motion-orbits">
+                <ellipse cx="390" cy="286" rx="248" ry="126" />
+                <ellipse cx="390" cy="286" rx="190" ry="92" />
+                <ellipse cx="390" cy="286" rx="126" ry="58" />
+              </g>
+              <g class="motion-ribbons">
+                <path class="motion-ribbon ribbon-red" d="M-82 494 C88 98 252 564 486 182 C592 10 690 74 820 -44" />
+                <path class="motion-ribbon ribbon-white" d="M-110 548 C106 184 280 610 514 220 C626 34 710 120 842 8" />
+                <path class="motion-ribbon ribbon-blue" d="M-136 604 C118 270 318 646 546 266 C650 94 752 156 864 76" />
+              </g>
+              <g class="motion-sparks">
+                <circle cx="118" cy="132" r="5" /><circle cx="178" cy="88" r="3" />
+                <circle cx="548" cy="112" r="4" /><circle cx="628" cy="186" r="3" />
+                <circle cx="606" cy="410" r="5" /><circle cx="248" cy="454" r="4" />
+              </g>
+              <path class="hero-route-shadow" d="M78 454 C148 382 112 264 224 204 C348 138 420 326 544 242 C628 184 594 102 694 76" />
+              <path id="heroRoutePath" class="hero-route-line" pathLength="1" d="M78 454 C148 382 112 264 224 204 C348 138 420 326 544 242 C628 184 594 102 694 76" />
+              <g class="hero-route-start" transform="translate(78 454)"><circle r="13" /><circle r="5" /></g>
+              <g class="hero-route-finish" transform="translate(694 76)"><path d="M0 10V-30" /><path d="M1 -29H28L20 -19L28 -9H1Z" /></g>
+              <g class="route-cursor" transform="translate(78 454)"><circle r="15" /><path d="M-5 -7L8 0L-5 7Z" /></g>
+            </svg>
+            <div class="world-index" aria-hidden="true"><span>01</span><i></i><span>04</span></div>
+            <div class="world-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
             <div class="world-route-key" aria-hidden="true"><span>${tr("START", "เริ่ม", "起点")}</span><i>→</i><strong>${tr("FINISH", "เส้นชัย", "终点")}</strong></div>
-            <div class="world-caption"><strong>${tr("RUN ROUTE", "เส้นทางวิ่ง", "跑步路线")}</strong><span>${tr("SCROLL TO MOVE", "เลื่อนเพื่อไปต่อ", "滚动前进")}</span></div>
+            <div class="world-caption"><strong>${tr("THAI MOTION", "จังหวะไทย", "泰式动态")}</strong><span>${tr("SCROLL TO FLOW", "เลื่อนเพื่อเคลื่อนไหว", "滚动推进")}</span></div>
+            <div class="world-credit"><span>${tr("ORIGINAL MOTION SYSTEM", "ระบบโมชั่นต้นฉบับ", "原创动态系统")}</span><b>RED / WHITE / BLUE</b></div>
           </div>
         </div>
         <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">
@@ -1178,10 +1222,6 @@ function renderLocalizedInterface() {
 }
 
 async function mountCurrentRunWorld(stage: HTMLElement, token: number) {
-  if (typeof window.WebGLRenderingContext === "undefined") {
-    stage.dataset.renderState = "fallback";
-    return;
-  }
   try {
     const { mountRunWorld } = await import("./run-world");
     const mount = mountRunWorld(stage);
@@ -1192,7 +1232,7 @@ async function mountCurrentRunWorld(stage: HTMLElement, token: number) {
     runWorldMount = mount;
   } catch (error) {
     stage.dataset.renderState = "fallback";
-    console.warn("3D run world unavailable; using static visual", error);
+    console.warn("Motion route unavailable; using static visual", error);
   }
 }
 
