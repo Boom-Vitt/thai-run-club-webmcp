@@ -1,6 +1,6 @@
 # WebMCP Challenge Compliance Audit
 
-Audit date: 2026-09-02 Asia/Bangkok
+Audit date: 2026-09-03 Asia/Bangkok
 
 Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists but required external proof is missing; **OPEN** = required artifact or action does not yet exist.
 
@@ -34,7 +34,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 
 | Deliverable | Status | Evidence / blocker |
 | --- | --- | --- |
-| Working hosted URL | OPEN | Local production preview is live at `http://127.0.0.1:5187`; no public deployment yet |
+| Working hosted URL | PARTIAL | An owner-only Sites production deployment exists at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site`; it is not yet accessible to judges | Obtain participant approval to make the Site public, then run a logged-out/fresh-session judge test |
 | Public repository | OPEN | Source and `.gitignore` are ready; repository has not been published |
 | Open-source license | PASS (file) | MIT `LICENSE` exists; public landing-page visibility cannot be verified until publishing |
 | Complete source and run instructions | PASS | `README.md`, lockfile, scripts, architecture, local URL, and test command |
@@ -56,11 +56,12 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 - Browser smoke test: passed with no console warnings or errors.
 - Local source checkpoint: Git commit `42245a3` on 2026-09-02 Asia/Bangkok; private Devpost workflow state is excluded by `.gitignore`.
 - Connected Chrome did not expose `document.modelContext`; its WebMCP testing flag still needs to be enabled manually. The in-app browser was unavailable in this environment.
+- Sites production deployment: version 1 succeeded at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site` with owner-only access. This is deployment evidence, not a compliant public judge URL.
 
 ## Immediate gates before completion
 
 1. Participant replies exact `yes` to the official Devpost rules gate.
 2. Enable WebMCP testing in Chrome 149+ or provide ChatGPT's in-app browser, then verify live discovery and execution.
 3. Choose the final project name.
-4. Publish repository and production site.
+4. Approve public Site access, verify the URL in a fresh session, and publish the source repository.
 5. Record/publish the demo and complete Devpost submission before the deadline.

@@ -48,3 +48,10 @@
 - Supports: WebMCP Leverage, Execution, Potential Impact, Creativity & Ambition, and the required English submission package.
 - Evidence: the official Devpost rules page was refreshed on 2026-09-03 at approximately 13:47 Asia/Bangkok; `npm run check` passed 20/20 tests and the production build; the local preview started on `127.0.0.1:5187`.
 - Open risks: the Devpost Hackathons plugin is unavailable in the current Codex session; no connected Chrome or in-app browser is available for native WebMCP evidence; final participant-selected name, exact `yes` rules acknowledgment, live URL, public repository, public YouTube video, and submitted confirmation remain open.
+
+## 2026-09-03 — Owner-only production deployment
+
+- Change: Registered the validated static Vite project with Sites, saved the exact tested source as a hosted version, and deployed it with owner-only access under an explicitly non-final working title.
+- Supports: Execution and the working-live-URL requirement by establishing the production hosting path without prematurely exposing the project publicly.
+- Evidence: production deployment succeeded at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site`; Sites reports custom owner-only access with one allowed owner, no external visitors, and no workspace or tenant groups.
+- Open risks: owner-only access does not satisfy judge accessibility; participant approval is required before switching the Site to public. Native WebMCP evidence, a public source repository, final name, public video, rules acknowledgment, and actual Devpost submission remain open.

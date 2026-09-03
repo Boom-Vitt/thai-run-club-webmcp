@@ -76,6 +76,7 @@ These checks do **not** replace the required native WebMCP browser evidence. Nat
 ## Links and media
 
 - **Live app:** `[EVIDENCE REQUIRED — public URL]`
+- **Current owner-only production preview:** `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site` (not valid for judges until public access is approved and verified)
 - **Public source repository:** `[EVIDENCE REQUIRED — public GitHub, GitLab, or Bitbucket URL]`
 - **Public YouTube demo under 3 minutes:** `[EVIDENCE REQUIRED — public URL]`
 - **License:** MIT (`LICENSE` in the repository; public landing-page detection must still be verified)
