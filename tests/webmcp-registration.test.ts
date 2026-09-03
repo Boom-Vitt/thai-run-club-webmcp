@@ -5,6 +5,7 @@ import { registerWebMcpTools, type ToolUiBridge, type WebMcpTool } from "../src/
 
 const bridge: ToolUiBridge = {
   selectEvent: vi.fn(),
+  showSchedule: vi.fn(),
   showPendingRegistration: vi.fn(),
   refreshPasses: vi.fn(),
   logActivity: vi.fn(),
@@ -32,8 +33,8 @@ describe("browser WebMCP registration", () => {
     const result = await registerWebMcpTools(localStorage, bridge);
 
     expect(result.supported).toBe(true);
-    expect(result.registered).toHaveLength(9);
-    expect(registerTool).toHaveBeenCalledTimes(9);
+    expect(result.registered).toHaveLength(10);
+    expect(registerTool).toHaveBeenCalledTimes(10);
     expect(registered.map((tool) => tool.name)).toContain("prepare_run_registration");
 
     const discovery = await window.__RUN_SOCIAL_WEBMCP__?.execute("discover_run_events", {
@@ -51,7 +52,7 @@ describe("browser WebMCP registration", () => {
 
     const result = await registerWebMcpTools(localStorage, bridge);
     expect(result.supported).toBe(false);
-    expect(result.registered).toHaveLength(9);
+    expect(result.registered).toHaveLength(10);
     expect(window.__RUN_SOCIAL_WEBMCP__).toBeDefined();
   });
 });

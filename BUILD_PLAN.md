@@ -55,6 +55,9 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 
 ### Read-only tools
 
+- `plan_run_schedule`
+  - Inputs: `city`, `distance_km`, `pace`, `social_preference`, `alcohol_free_required`.
+  - Output: a chronological run week with a next match; updates the visible Runner Agent Week Board.
 - `discover_run_events`
   - Inputs: `city`, `distance_km`, `pace`, `date`, `social_preference`, `alcohol_free_required`.
   - Output: matching event summaries and why each matches.
@@ -121,12 +124,12 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 ## 8. Acceptance criteria
 
 - [x] Human UI supports discovery, details, rules, readiness, registration, pass, and return plan.
-- [x] Nine meaningful WebMCP tools register with bounded JSON Schemas.
+- [x] Ten meaningful WebMCP tools register with bounded JSON Schemas.
 - [x] Read-only tools are annotated correctly and return structured results.
 - [x] Consequential registration requires a visible, explicit human confirmation.
 - [x] WebMCP tool execution updates the same state and UI used by humans.
 - [x] Safety and alcohol rules block under-age alcohol selection, pre-run drinking, schema-bypass attempts, and driving-after-drinking flows.
-- [x] All 20 automated tests and the production build pass.
+- [x] All 23 automated tests and the production build pass.
 - [x] App listens on `127.0.0.1:5187`; port was verified unused before launch.
 - [ ] Browser smoke test proves core flow, but responsive viewport evidence remains pending because the connected browser ignored viewport override.
 - [ ] WebMCP-capable browser test proves tool discovery and at least one end-to-end tool call.

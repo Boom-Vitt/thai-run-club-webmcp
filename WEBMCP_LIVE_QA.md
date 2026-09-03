@@ -6,19 +6,19 @@ Run this checklist in a fresh supported browser session before recording or subm
 
 1. Start the production preview with `npm run preview`.
 2. Open `http://127.0.0.1:5187` in ChatGPT's in-app browser, or Chrome 149+ with `chrome://flags/#enable-webmcp-testing` enabled and Chrome relaunched.
-3. Confirm the page status reads **WebMCP tools are live** and **9 tools registered in this page**. A fallback-status message is a failed prerequisite, not a passing WebMCP test.
+3. Confirm the page status reads **Runner Agent connected via WebMCP** and **10 actions ready for the browser agent**. A local-planner status is a failed native prerequisite, not a passing WebMCP test.
 4. Start with no stored run pass, or use a fresh browser profile.
 
 ## Eval 1 — Tool discovery and intent routing
 
 Prompt:
 
-> Find a relaxed 5 km run in Bangkok with an alcohol-free option. Compare the best choices and open the most suitable event for me. Do not register yet.
+> Build my run schedule for relaxed 5 km runs in Bangkok with an alcohol-free option. Compare the best choices and open the most suitable event for me. Do not register yet.
 
 Expected evidence:
 
-- Agent discovers all nine tools from `document.modelContext`.
-- Agent calls `discover_run_events` with structured filters.
+- Agent discovers all ten tools from `document.modelContext`.
+- Agent calls `plan_run_schedule` with structured filters and the visible Week Board updates.
 - Agent uses `compare_run_events` only when at least two valid event IDs exist; otherwise it explains that one exact match was found.
 - Agent calls `get_run_event_details` for the selected event.
 - The same event opens visibly in the human interface.
@@ -82,7 +82,7 @@ Capture the following before claiming native WebMCP completion:
 
 - Browser and exact version.
 - Live URL and test time in Asia/Bangkok.
-- Screenshot showing the live nine-tool status.
+- Screenshot showing the live ten-action status.
 - Tool names returned by native discovery.
 - Inputs and outputs for all four evals.
 - Screenshot of the visible pending-confirmation dialog and confirmed pass.

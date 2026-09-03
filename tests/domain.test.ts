@@ -3,6 +3,7 @@ import {
   checkReadiness,
   confirmPendingRegistration,
   discoverEvents,
+  planRunSchedule,
   getRules,
   readRegistrations,
   safeReturnOptions,
@@ -36,6 +37,19 @@ describe("event discovery", () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.event.id).toBe("bkk-riverside-5");
     expect(results[0]?.matchReasons).toContain("มีตัวเลือก alcohol-free");
+  });
+});
+
+describe("runner schedule", () => {
+  it("returns an ordered, preference-matched schedule", () => {
+    const schedule = planRunSchedule({ city: "Bangkok", pace: "social" });
+
+    expect(schedule.count).toBe(2);
+    expect(schedule.totalDistanceKm).toBe(8);
+    expect(schedule.events.map((event) => event.id)).toEqual([
+      "bkk-riverside-5",
+      "bkk-green-3",
+    ]);
   });
 });
 

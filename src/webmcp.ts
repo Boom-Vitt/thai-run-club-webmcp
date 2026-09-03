@@ -6,6 +6,7 @@ import {
   discoverEvents,
   findEvent,
   getRules,
+  planRunSchedule,
   readRegistrations,
   safeReturnOptions,
   stageRegistration,
@@ -37,6 +38,7 @@ export interface WebMcpTool {
 
 export interface ToolUiBridge {
   selectEvent: (eventId: string) => void;
+  showSchedule: (filters: EventFilters) => void;
   showPendingRegistration: (input: RegistrationInput) => void;
   refreshPasses: () => void;
   logActivity: (entry: Omit<ActivityEntry, "id" | "time">) => void;
@@ -123,6 +125,64 @@ function activity(bridge: ToolUiBridge, title: string, detail: string) {
 
 export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): WebMcpTool[] {
   return [
+    {
+      name: "plan_run_schedule",
+      title: "Plan my run schedule",
+      description:
+        "Build a chronological run schedule from city, distance, pace, and social preferences, then show the same plan on the Runner Agent week board. Use when a runner asks what is coming up or wants a shortlist to act on.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          city: citySchema,
+          distance_km: { type: "number", enum: DISTANCES },
+          pace: paceSchema,
+          social_preference: socialSchema,
+          alcohol_free_required: { type: "boolean", default: false },
+        },
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true, untrustedContentHint: false },
+      execute: async (input, options) => {
+        assertActive(options);
+        const filters: EventFilters = {
+          city: optionalEnumValue(input.city, "city", CITIES) as City | undefined,
+          distanceKm: optionalDistanceValue(input.distance_km),
+          pace: optionalEnumValue(input.pace, "pace", PACES) as PaceBand | undefined,
+          socialPreference: optionalEnumValue(
+            input.social_preference,
+            "social_preference",
+            SOCIAL_OPTIONS,
+          ) as SocialOption | undefined,
+          alcoholFreeRequired: optionalBooleanValue(input.alcohol_free_required, "alcohol_free_required"),
+        };
+        const plan = planRunSchedule(filters);
+        bridge.showSchedule(filters);
+        activity(
+          bridge,
+          "Runner Agent built a schedule",
+          `${plan.count} runs · ${plan.totalDistanceKm} km on the week board`,
+        );
+        return {
+          count: plan.count,
+          total_distance_km: plan.totalDistanceKm,
+          next_event_id: plan.nextEventId,
+          events: plan.events.map((event) => ({
+            id: event.id,
+            city: event.city,
+            neighborhood: event.neighborhood,
+            date: event.date,
+            start_time: event.startTime,
+            distance_km: event.distanceKm,
+            pace_groups: event.paceBands,
+            social_options: event.socialOptions,
+            spots_left: event.spotsLeft,
+          })),
+          next_action: plan.count > 0
+            ? "Open, compare, or check the next event."
+            : "Relax a filter and plan again.",
+        };
+      },
+    },
     {
       name: "discover_run_events",
       title: "Discover Thailand run events",

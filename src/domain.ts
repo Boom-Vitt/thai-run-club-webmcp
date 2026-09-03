@@ -52,6 +52,32 @@ export function discoverEvents(filters: EventFilters): EventMatch[] {
   });
 }
 
+export function planRunSchedule(filters: EventFilters) {
+  const matches = discoverEvents(filters).sort((left, right) =>
+    `${left.event.date}T${left.event.startTime}`.localeCompare(
+      `${right.event.date}T${right.event.startTime}`,
+    ),
+  );
+
+  return {
+    count: matches.length,
+    totalDistanceKm: matches.reduce((total, { event }) => total + event.distanceKm, 0),
+    nextEventId: matches[0]?.event.id ?? null,
+    events: matches.map(({ event, matchReasons }) => ({
+      id: event.id,
+      city: event.city,
+      neighborhood: event.neighborhood,
+      date: event.date,
+      startTime: event.startTime,
+      distanceKm: event.distanceKm,
+      paceBands: event.paceBands,
+      socialOptions: event.social,
+      spotsLeft: event.spotsLeft,
+      matchReasons,
+    })),
+  };
+}
+
 export function compareEvents(eventIds: string[]) {
   const uniqueIds = [...new Set(eventIds)];
   if (uniqueIds.length < 2 || uniqueIds.length > 3) {

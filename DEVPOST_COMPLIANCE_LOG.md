@@ -55,3 +55,17 @@
 - Supports: Execution and the working-live-URL requirement by establishing the production hosting path without prematurely exposing the project publicly.
 - Evidence: production deployment succeeded at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site`; Sites reports custom owner-only access with one allowed owner, no external visitors, and no workspace or tenant groups.
 - Open risks: owner-only access does not satisfy judge accessibility; participant approval is required before switching the Site to public. Native WebMCP evidence, a public source repository, final name, public video, rules acknowledgment, and actual Devpost submission remain open.
+
+## 2026-09-03 — Runner Agent execution redesign started
+
+- Change: Began moving the product from generic WebMCP explanation to a Runner Agent-first working surface: no-login schedule planning, visible run-week results, real tool-backed actions, comparison, readiness/safe-return support, and a human-confirmed registration handoff.
+- Supports: WebMCP Leverage through a task-completing schedule tool and shared visible state; Execution through an immediately usable planning flow; Potential Impact through a concrete runner job; Creativity & Ambition through the Runner Agent Relay interaction model.
+- Evidence planned: domain and tool-contract tests for schedule execution, full automated check/build, local HTTP verification, and a new owner-only Sites deployment. Native WebMCP browser evidence remains a separate required gate.
+- Open risks: `rules_acknowledged` remains false because the participant has not replied exact `yes`; no connected supported browser is available for native WebMCP execution evidence; public access, public repository, final participant-selected name, video, and Devpost submission remain open.
+
+## 2026-09-03 — Runner Agent execution redesign completed locally
+
+- Change: Rebuilt the first viewport around a no-login Runner Agent Week Board; added four runner-facing jobs (Scout, Sort, Check, Handoff); added working schedule filters and quick missions; and registered `plan_run_schedule` as the tenth WebMCP action so an agent and the visible UI execute the same chronological planning path.
+- Supports: WebMCP Leverage through a new task-completing action; Execution through a usable schedule that updates the event catalog; Potential Impact through a clear runner assistant; Creativity & Ambition through the relay-style human handoff for consequential registration.
+- Evidence: 4 test files and 23 tests pass, including a jsdom no-login UI execution test, chronological domain scheduling, all ten mocked `registerTool()` calls, and an all-events output-budget check; TypeScript and the Vite production build pass; local preview returns HTTP 200 with the expected WebMCP headers.
+- Open risks: native WebMCP execution is still unverified without a connected supported browser. The current public-facing claim remains bounded: the built-in planner works now, while external-agent control requires WebMCP. Public access, public repository, final participant-selected name, video, rules acknowledgment, and submission are still open.

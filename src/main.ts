@@ -5,6 +5,7 @@ import {
   confirmPendingRegistration,
   discoverEvents,
   findEvent,
+  planRunSchedule,
   readPendingRegistration,
   readRegistrations,
   safeReturnOptions,
@@ -90,15 +91,15 @@ function routeGraphic(eventId: string) {
 
 function renderShell() {
   app.innerHTML = `
-    <a class="skip-link" href="#events">ข้ามไปดูอีเวนต์</a>
+    <a class="skip-link" href="#runner-agent">ข้ามไปใช้ Runner Agent</a>
     <header class="site-header">
       <a class="wordmark" href="#top" aria-label="กลับด้านบน">
         <span class="wordmark-mark" aria-hidden="true">R/</span>
         <span>RUN SOCIAL TH <small>WORKING LABEL</small></span>
       </a>
       <nav aria-label="เมนูหลัก">
-        <a href="#events">Runs</a>
-        <a href="#webmcp">WebMCP</a>
+        <a href="#runner-agent">Agent</a>
+        <a href="#events">Schedule</a>
         <a href="#rules">Rules</a>
       </nav>
       <button class="header-pass" id="showPassesButton" type="button">
@@ -107,37 +108,48 @@ function renderShell() {
     </header>
 
     <main id="top">
-      <section class="hero section-shell" aria-labelledby="hero-title">
+      <section class="hero section-shell" id="runner-agent" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> THAILAND · HUMAN + AGENT RUNNING</p>
-          <h1 id="hero-title">RUN FIRST.<br /><em>SOCIAL</em> AFTER.</h1>
-          <p class="hero-lead">รวมคนที่อยากวิ่งให้จบ แล้วค่อยนั่งคุยกันต่อ—เบียร์เป็นทางเลือก น้ำและ alcohol-free มาก่อนเสมอ</p>
+          <p class="eyebrow"><span></span> RUNNER AGENT · NO ACCOUNT NEEDED</p>
+          <h1 id="hero-title">YOUR RUN WEEK.<br /><em>READY TO GO.</em></h1>
+          <p class="hero-lead">เพื่อนวิ่งที่ช่วยหา run ให้ตรงเพซ จัดตาราง เปรียบเทียบงาน เช็กความพร้อม วางทางกลับ และเตรียม Run Pass ให้คุณตรวจ—เปิดเว็บแล้วใช้ได้เลย ไม่ต้องล็อกอิน</p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#events">หา run ที่ใช่ <span>↘</span></a>
-            <button class="button button-ghost" id="agentDemoButton" type="button">ลอง agent flow <span>✦</span></button>
+            <a class="button button-primary" href="#agent-planner">ให้ Agent จัดตาราง <span>↘</span></a>
+            <a class="button button-ghost" href="#events">ดู run ทั้งหมด <span>→</span></a>
           </div>
           <div class="hero-proof" aria-label="ข้อมูลสำคัญ">
-            <span><strong>${EVENTS.length}</strong> demo runs</span>
-            <span><strong>9</strong> WebMCP tools</span>
-            <span><strong>0</strong> forced drinks</span>
+            <span><strong>${EVENTS.length}</strong> runs in schedule</span>
+            <span><strong>10</strong> agent actions</span>
+            <span><strong>1</strong> human final call</span>
+          </div>
+          <div class="agent-promise-grid" aria-label="สิ่งที่ Runner Agent ช่วยได้">
+            <article><span>01 / SCOUT</span><strong>หา run ที่เข้ากับคุณ</strong><p>เมือง ระยะ เพซ วัน และ social choice</p></article>
+            <article><span>02 / SORT</span><strong>จัดตารางและเทียบตัวเลือก</strong><p>เวลา ราคา ที่ว่าง และเส้นทางกลับ</p></article>
+            <article><span>03 / CHECK</span><strong>เช็กก่อนออกวิ่ง</strong><p>กฎ ความพร้อม น้ำ และแผนเดินทาง</p></article>
+            <article><span>04 / HANDOFF</span><strong>เตรียมให้ คุณเป็นคนยืนยัน</strong><p>Agent ส่งไม้ต่อก่อนสร้าง Run Pass</p></article>
           </div>
         </div>
-        <div class="hero-visual" aria-hidden="true">
-          <div class="hero-orbit hero-orbit-one"></div>
-          <div class="hero-orbit hero-orbit-two"></div>
-          <svg viewBox="0 0 560 620" class="hero-route">
-            <path d="M54 520 C88 368 224 488 220 304 S356 112 500 164" pathLength="1" />
-          </svg>
-          <div class="hero-stat hero-stat-distance"><span>05</span><small>KM / CITY LOOP</small></div>
-          <div class="hero-stat hero-stat-time"><small>MEET</small><span>17:15</span></div>
-          <div class="hero-badge"><span>20+</span><small>OPTIONAL<br />SOCIAL</small></div>
-          <div class="runner-figure"><span class="runner-head"></span><span class="runner-body"></span><span class="runner-leg one"></span><span class="runner-leg two"></span><span class="runner-arm one"></span><span class="runner-arm two"></span></div>
-          <p class="hero-caption">The route is shared.<br />The choice is yours.</p>
-        </div>
+        <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">
+          <div class="agent-desk-top"><span>R/ AGENT RELAY</span><strong>WEEK BOARD</strong><i>READY</i></div>
+          <div class="agent-desk-intro">
+            <p>บอกเป้าหมายวันนี้</p>
+            <h2 id="agent-planner-title">อยากวิ่งแบบไหน?</h2>
+          </div>
+          <form class="agent-planner-form" id="agentPlannerForm" aria-label="ให้ Runner Agent จัดตารางวิ่ง">
+            <label><span>เมือง</span><select name="city"><option value="">ทุกเมือง</option><option>Bangkok</option><option>Chiang Mai</option><option>Phuket</option><option>Khon Kaen</option></select></label>
+            <label><span>ระยะ</span><select name="distance"><option value="">ทุกระยะ</option><option value="3">3 KM</option><option value="5">5 KM</option><option value="7">7 KM</option><option value="10">10 KM</option></select></label>
+            <label><span>เพซ</span><select name="pace"><option value="">ทุกเพซ</option><option value="social">Social</option><option value="steady">Steady</option><option value="tempo">Tempo</option></select></label>
+            <label><span>หลังวิ่ง</span><select name="social"><option value="">ทุกแบบ</option><option value="alcohol_free">Alcohol-free</option><option value="run_only">Run only</option><option value="beer_optional">Optional 20+</option></select></label>
+            <button type="submit"><span>✦</span> ให้ Agent จัดตาราง <b>→</b></button>
+          </form>
+          <button class="agent-preset" type="button" data-agent-preset="bangkok-easy">ลองตัวอย่าง: Bangkok 5K · social pace · alcohol-free</button>
+          <div class="agent-plan-summary" id="agentPlanSummary" role="status" aria-live="polite"></div>
+          <div class="agent-schedule-board" id="agentScheduleBoard"></div>
+        </section>
       </section>
 
       <section class="ticker" aria-label="หลักการกิจกรรม">
-        <div>RUN TOGETHER <span>✦</span> CHOOSE YOUR PACE <span>✦</span> SOCIAL RESPONSIBLY <span>✦</span> GET HOME SAFE <span>✦</span></div>
+        <div>BUILD MY WEEK <span>✦</span> FIND MY PACE <span>✦</span> CHECK MY RUN <span>✦</span> PLAN MY WAY HOME <span>✦</span> HAND ME THE FINAL CALL <span>✦</span></div>
       </section>
 
       <section class="events-section section-shell" id="events" aria-labelledby="events-title">
@@ -196,30 +208,32 @@ function renderShell() {
       <section class="agent-section" id="webmcp" aria-labelledby="agent-title">
         <div class="section-shell agent-layout">
           <div class="agent-copy">
-            <p class="eyebrow eyebrow-light"><span></span> WEBMCP-NATIVE</p>
-            <h2 id="agent-title">ONE ASK.<br /><em>NINE PRECISE TOOLS.</em></h2>
-            <p>ไม่ต้องให้ agent เดาปุ่มหรือ scrape หน้าเว็บ ทุก action มีชื่อ จุดประสงค์ schema และผลลัพธ์ที่ชัดเจน</p>
+            <p class="eyebrow eyebrow-light"><span></span> RUNNER AGENT RELAY</p>
+            <h2 id="agent-title">SCOUT. SORT.<br /><em>CHECK. HAND OFF.</em></h2>
+            <p>Runner Agent เปลี่ยนเป้าหมายของคุณให้เป็นตารางที่ลงมือทำต่อได้: หาและเรียงงาน เปิดรายละเอียด เช็กกฎกับความพร้อม วางทางกลับ และเตรียมการสมัครไว้บนหน้าจอให้คุณตัดสินใจ</p>
             <div class="agent-status" id="webMcpStatus" role="status">
               <span class="status-dot"></span>
               <div><strong>Checking WebMCP…</strong><small>Human interface is already available</small></div>
             </div>
             <div class="agent-steps">
-              <article><span>01</span><div><h3>DISCOVER</h3><p>เมือง · ระยะ · เพซ · social choice</p></div></article>
-              <article><span>02</span><div><h3>VERIFY</h3><p>กฎ · อายุ · readiness · ทางกลับ</p></div></article>
-              <article><span>03</span><div><h3>PREPARE</h3><p>agent เตรียม คนตรวจและกดยืนยัน</p></div></article>
+              <article><span>01</span><div><h3>BUILD THE BOARD</h3><p>จัดตารางตามเมือง ระยะ เพซ และตัวเลือกหลังวิ่ง</p></div></article>
+              <article><span>02</span><div><h3>SHORTLIST THE FIT</h3><p>เทียบวัน เวลา ราคา ที่ว่าง และข้อมูลเดินทางกลับ</p></div></article>
+              <article><span>03</span><div><h3>RUN THE CHECKS</h3><p>เช็กกฎ ความพร้อม น้ำ อายุ และแผนเดินทาง</p></div></article>
+              <article><span>04</span><div><h3>PASS THE BATON</h3><p>เตรียม Run Pass แล้วหยุดรอคนกดยืนยันบนหน้าจอ</p></div></article>
             </div>
           </div>
           <div class="agent-console" aria-label="WebMCP activity">
-            <div class="console-top"><span><i></i><i></i><i></i></span><strong>LIVE ACTIVITY</strong><small id="toolCount">9 tools</small></div>
+            <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">10 actions</small></div>
             <div class="console-prompt">
               <span>YOU</span>
-              <p>“หา social run 5K ในกรุงเทพที่มี alcohol-free แล้วช่วยวางแผนกลับบ้านให้ด้วย”</p>
+              <p id="agentPromptText">“เปิดตารางวิ่งทั้งหมด แล้วช่วยจัดลำดับสิ่งที่ฉันทำต่อได้”</p>
             </div>
             <div class="activity-list" id="activityList" aria-live="polite"></div>
-            <div class="console-actions" id="fallbackTools" hidden>
-              <button type="button" data-demo-tool="discover">Run discovery tool</button>
-              <button type="button" data-demo-tool="rules">Read safety rules</button>
-              <button type="button" data-demo-tool="return">Plan safe return</button>
+            <div class="console-actions" id="agentQuickActions">
+              <button type="button" data-agent-action="plan-week">จัดตารางทุกงาน</button>
+              <button type="button" data-agent-action="bangkok-easy">หา Bangkok easy 5K</button>
+              <button type="button" data-agent-action="compare-social">เทียบสาย social</button>
+              <button type="button" data-agent-action="return">วางทางกลับ</button>
             </div>
           </div>
         </div>
@@ -282,6 +296,85 @@ function renderShell() {
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   `;
+}
+
+function scheduleDateParts(date: string) {
+  const value = new Date(`${date}T12:00:00+07:00`);
+  return {
+    weekday: new Intl.DateTimeFormat("th-TH", { weekday: "short" }).format(value),
+    day: new Intl.DateTimeFormat("th-TH", { day: "2-digit" }).format(value),
+    month: new Intl.DateTimeFormat("th-TH", { month: "short" }).format(value),
+  };
+}
+
+function filterDescription(filters: EventFilters): string {
+  const details = [
+    filters.city,
+    filters.distanceKm ? `${filters.distanceKm} KM` : undefined,
+    filters.pace ? PACE_LABELS[filters.pace] : undefined,
+    filters.socialPreference ? SOCIAL_LABELS[filters.socialPreference] : undefined,
+  ].filter(Boolean);
+  return details.length > 0 ? details.join(" · ") : "ทุกเมือง · ทุกระยะ · เรียงตามวัน";
+}
+
+function syncFilterForm(formId: string, filters: EventFilters) {
+  const form = document.querySelector<HTMLFormElement>(`#${formId}`);
+  if (!form) return;
+  const setValue = (name: string, value: string | number | undefined) => {
+    const field = form.elements.namedItem(name);
+    if (field instanceof HTMLSelectElement) field.value = value === undefined ? "" : String(value);
+  };
+  setValue("city", filters.city);
+  setValue("distance", filters.distanceKm);
+  setValue("pace", filters.pace);
+  setValue("social", filters.socialPreference);
+}
+
+function renderAgentSchedule(filters: EventFilters) {
+  const summary = document.querySelector<HTMLDivElement>("#agentPlanSummary");
+  const board = document.querySelector<HTMLDivElement>("#agentScheduleBoard");
+  if (!summary || !board) return;
+
+  const plan = planRunSchedule(filters);
+  state.filters = { ...filters };
+  syncFilterForm("agentPlannerForm", filters);
+  syncFilterForm("eventFilters", filters);
+  renderEvents();
+
+  summary.innerHTML = `
+    <div><span>AGENT PLAN</span><strong>${plan.count} run${plan.count === 1 ? "" : "s"} matched</strong></div>
+    <p>${escapeHtml(filterDescription(filters))} · รวม ${plan.totalDistanceKm} KM</p>`;
+
+  if (plan.events.length === 0) {
+    board.innerHTML = `
+      <div class="agent-schedule-empty">
+        <strong>ยังไม่มี run ที่ตรงทุกข้อ</strong>
+        <p>ลดเงื่อนไขหนึ่งอย่างแล้วให้ Runner Agent จัดตารางใหม่</p>
+        <button type="button" data-agent-action="plan-week">เปิดตารางทั้งหมด</button>
+      </div>`;
+  } else {
+    board.innerHTML = plan.events.map((event, index) => {
+      const date = scheduleDateParts(event.date);
+      return `
+        <article class="agent-schedule-row ${index === 0 ? "is-next" : ""}">
+          <time datetime="${event.date}T${event.startTime}:00+07:00"><span>${date.weekday}</span><strong>${date.day}</strong><small>${date.month}</small></time>
+          <div class="agent-schedule-main">
+            <span>${index === 0 ? "NEXT MATCH" : `OPTION ${String(index + 1).padStart(2, "0")}`}</span>
+            <strong>${escapeHtml(event.city)} · ${escapeHtml(event.neighborhood)}</strong>
+            <p>${event.distanceKm} KM · ${event.paceBands.map((pace) => PACE_LABELS[pace]).join(" / ")}</p>
+          </div>
+          <div class="agent-schedule-meta"><strong>${event.startTime}</strong><small>${event.spotsLeft} spots</small></div>
+          <button type="button" data-schedule-open="${event.id}" aria-label="เปิดรายละเอียด ${escapeHtml(event.city)} ${event.distanceKm} กิโลเมตร">↗</button>
+        </article>`;
+    }).join("");
+  }
+
+  board.querySelectorAll<HTMLButtonElement>("[data-schedule-open]").forEach((button) => {
+    button.addEventListener("click", () => openEvent(button.dataset.scheduleOpen ?? "", "human"));
+  });
+  board.querySelectorAll<HTMLButtonElement>("[data-agent-action]").forEach((button) => {
+    button.addEventListener("click", () => void runAgentAction(button.dataset.agentAction ?? ""));
+  });
 }
 
 function renderEvents() {
@@ -579,46 +672,105 @@ function bindUi() {
       if (event.target === dialog) dialog.close();
     });
   });
-  document.querySelector<HTMLButtonElement>("#agentDemoButton")?.addEventListener("click", () => {
-    document.querySelector("#webmcp")?.scrollIntoView({ behavior: "smooth" });
-    window.setTimeout(() => runDemoTool("discover"), 400);
+  document.querySelector<HTMLFormElement>("#agentPlannerForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const data = new FormData(form);
+    const input: Record<string, unknown> = {};
+    if (data.get("city")) input.city = String(data.get("city"));
+    if (data.get("distance")) input.distance_km = Number(data.get("distance"));
+    if (data.get("pace")) input.pace = String(data.get("pace"));
+    if (data.get("social")) input.social_preference = String(data.get("social"));
+    void executeSchedulePlan(input, `“จัดตาราง ${filterDescription({
+      city: input.city as City | undefined,
+      distanceKm: input.distance_km as number | undefined,
+      pace: input.pace as PaceBand | undefined,
+      socialPreference: input.social_preference as SocialOption | undefined,
+    })} ให้ฉัน”`);
   });
-  document.querySelectorAll<HTMLButtonElement>("[data-demo-tool]").forEach((button) => {
-    button.addEventListener("click", () => runDemoTool(button.dataset.demoTool ?? ""));
+  document.querySelectorAll<HTMLButtonElement>("[data-agent-preset]").forEach((button) => {
+    button.addEventListener("click", () => void runAgentAction(button.dataset.agentPreset ?? ""));
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-agent-action]").forEach((button) => {
+    button.addEventListener("click", () => void runAgentAction(button.dataset.agentAction ?? ""));
   });
 }
 
-async function runDemoTool(action: string) {
+function setAgentPrompt(message: string) {
+  const prompt = document.querySelector<HTMLParagraphElement>("#agentPromptText");
+  if (prompt) prompt.textContent = message;
+}
+
+async function executeSchedulePlan(input: Record<string, unknown>, prompt: string) {
   const harness = window.__RUN_SOCIAL_WEBMCP__;
-  if (!harness) return;
+  if (!harness) {
+    showToast("Runner Agent ยังเริ่มไม่สำเร็จ กรุณาลองอีกครั้ง", true);
+    return null;
+  }
+  const submit = document.querySelector<HTMLButtonElement>("#agentPlannerForm button[type='submit']");
+  submit?.setAttribute("aria-busy", "true");
+  if (submit) submit.disabled = true;
+  setAgentPrompt(prompt);
   try {
-    if (action === "discover") {
-      const result = await harness.execute("discover_run_events", {
-        city: "Bangkok",
-        distance_km: 5,
-        social_preference: "alcohol_free",
-        alcohol_free_required: true,
-      });
-      const first = (result as { events?: Array<{ id: string }> }).events?.[0];
-      if (first) openEvent(first.id, "agent");
-    } else if (action === "rules") {
-      await harness.execute("get_event_rules", { event_id: "bkk-riverside-5" });
-      document.querySelector("#rules")?.scrollIntoView({ behavior: "smooth" });
-    } else if (action === "return") {
-      await harness.execute("get_safe_return_options", {
-        event_id: "bkk-riverside-5",
-        social_preference: "beer_optional",
-      });
-      showToast("Safe-return plan added to activity");
-    }
+    const result = await harness.execute("plan_run_schedule", input);
+    const count = (result as { count?: number }).count ?? 0;
+    showToast(count > 0 ? `Runner Agent จัดตาราง ${count} งานแล้ว` : "ยังไม่พบงาน ลองลดเงื่อนไขหนึ่งอย่าง");
+    return result as { count: number; events: Array<{ id: string }> };
   } catch (error) {
     showToast(error instanceof Error ? error.message : "Tool call failed", true);
+    return null;
+  } finally {
+    submit?.removeAttribute("aria-busy");
+    if (submit) submit.disabled = false;
+  }
+}
+
+async function runAgentAction(action: string) {
+  const harness = window.__RUN_SOCIAL_WEBMCP__;
+  if (!harness) {
+    showToast("Runner Agent ยังเริ่มไม่สำเร็จ กรุณาลองอีกครั้ง", true);
+    return;
+  }
+
+  try {
+    if (action === "plan-week") {
+      await executeSchedulePlan({}, "“เปิดตารางวิ่งทั้งหมดและเรียงงานถัดไปให้ฉัน”");
+    } else if (action === "bangkok-easy") {
+      const result = await executeSchedulePlan(
+        { city: "Bangkok", distance_km: 5, pace: "social", social_preference: "alcohol_free", alcohol_free_required: true },
+        "“หา Bangkok 5K เพซสบาย มี alcohol-free แล้วเปิดตัวที่เหมาะให้ฉัน”",
+      );
+      const first = result?.events[0];
+      if (first) await harness.execute("get_run_event_details", { event_id: first.id });
+    } else if (action === "compare-social") {
+      const result = await executeSchedulePlan(
+        { pace: "social", social_preference: "alcohol_free" },
+        "“จัดตารางสาย social ที่มี alcohol-free แล้วเทียบสามตัวเลือกแรก”",
+      );
+      const ids = result?.events.slice(0, 3).map((event) => event.id) ?? [];
+      if (ids.length >= 2) {
+        await harness.execute("compare_run_events", { event_ids: ids });
+        showToast(`Runner Agent เทียบ ${ids.length} ตัวเลือกแล้ว`);
+      }
+    } else if (action === "return") {
+      setAgentPrompt("“เปิดงาน Bangkok 5K แล้ววางทางกลับที่ปลอดภัยให้ฉัน”");
+      const result = await harness.execute("get_safe_return_options", {
+        event_id: "bkk-riverside-5",
+        social_preference: "alcohol_free",
+      }) as { warning?: string };
+      const summary = document.querySelector<HTMLDivElement>("#agentPlanSummary");
+      if (summary) summary.innerHTML = `<div><span>SAFE RETURN</span><strong>แผนกลับพร้อมแล้ว</strong></div><p>${escapeHtml(result.warning ?? "เลือกทางกลับก่อนออกวิ่ง")}</p>`;
+      showToast("Runner Agent วางทางกลับให้แล้ว");
+    }
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "Runner Agent ทำงานไม่สำเร็จ", true);
   }
 }
 
 async function initializeWebMcp() {
   const result = await registerWebMcpTools(localStorage, {
     selectEvent: (eventId) => openEvent(eventId, "agent"),
+    showSchedule: renderAgentSchedule,
     showPendingRegistration: showPendingConfirmation,
     refreshPasses,
     logActivity: addActivity,
@@ -626,27 +778,26 @@ async function initializeWebMcp() {
   state.webMcpSupported = result.supported;
 
   const status = document.querySelector<HTMLDivElement>("#webMcpStatus");
-  const fallback = document.querySelector<HTMLDivElement>("#fallbackTools");
   const toolCount = document.querySelector<HTMLElement>("#toolCount");
-  if (toolCount) toolCount.textContent = `${result.registered.length || 9} tools`;
+  if (toolCount) toolCount.textContent = `${result.registered.length || 10} actions`;
   if (status) {
     status.classList.toggle("is-live", result.supported);
     status.classList.toggle("is-fallback", !result.supported);
     status.innerHTML = result.supported
-      ? `<span class="status-dot"></span><div><strong>WebMCP tools are live</strong><small>${result.registered.length} tools registered in this page</small></div>`
-      : `<span class="status-dot"></span><div><strong>Human mode + tool harness</strong><small>Open in ChatGPT browser or Chrome 149+ with WebMCP enabled</small></div>`;
+      ? `<span class="status-dot"></span><div><strong>Runner Agent connected via WebMCP</strong><small>${result.registered.length} actions ready for the browser agent</small></div>`
+      : `<span class="status-dot"></span><div><strong>Runner Agent planner is ready</strong><small>Connect a WebMCP browser to let an external agent use the same actions</small></div>`;
   }
-  if (fallback) fallback.hidden = result.supported;
   addActivity({
     source: "system",
-    title: result.supported ? "WebMCP registered" : "Progressive fallback active",
+    title: result.supported ? "Runner Agent connected" : "Runner Agent local planner ready",
     detail: result.supported
-      ? `${result.registered.length} structured tools exposed to the browser agent`
-      : "The human UI works; deterministic tool harness is available for local QA",
+      ? `${result.registered.length} task actions exposed to the browser agent`
+      : "Schedule planning works now; external agent control needs a WebMCP browser",
   });
 }
 
 renderShell();
+renderAgentSchedule({});
 renderEvents();
 renderActivity();
 refreshPasses();

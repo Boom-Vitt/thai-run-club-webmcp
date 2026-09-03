@@ -8,7 +8,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 
 | Requirement | Status | Evidence | Remaining work |
 | --- | --- | --- | --- |
-| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers nine imperative tools; 20 automated tests pass; mocked browser integration verifies all nine `registerTool()` calls | Enable WebMCP in a supported controlled browser and capture live tool discovery/execution evidence |
+| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers ten imperative tools; 23 automated tests pass; mocked browser integration verifies all ten `registerTool()` calls; the no-login Runner Agent Week Board executes the same schedule tool path | Enable WebMCP in a supported controlled browser and capture live tool discovery/execution evidence |
 | Meaningful WebMCP leverage | PASS (code) | Discovery, comparison, details, rules, readiness, safe return, staged registration, pass lookup, and cancellation use bounded schemas and shared domain logic | Live browser evidence still required for submission proof |
 | Complete human product experience | PASS | Chrome browser smoke test completed filter → details → under-age block → staged confirmation → confirmed run pass on production build with no console errors | Add remote production URL for judges |
 | Human/agent shared context | PASS (code) | `get_run_event_details` opens the visible drawer; `prepare_run_registration` opens the confirmation UI; activity log records agent actions | Capture these actions from a real WebMCP client |
@@ -49,7 +49,7 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 - Node.js: v22.23.2.
 - Chrome: 152.0.7977.65.
 - Production build: Vite 8.2.2, successful.
-- Automated verification: 3 test files, 20 tests, all passed, including the recommended 1.5K-character output budget for representative tool calls.
+- Automated verification: 4 test files, 23 tests, all passed, including the no-login schedule UI and the recommended 1.5K-character output budget for representative tool calls.
 - Security audit: npm reported 0 known vulnerabilities at install time.
 - Server: Node process bound only to `127.0.0.1:5187` with `--strictPort`; a deliberate second-instance test exited nonzero with `Port 5187 is already in use` instead of selecting another port.
 - Headers: HTTP 200, `Origin-Agent-Cluster: ?1`, `Permissions-Policy: tools=(self)`.

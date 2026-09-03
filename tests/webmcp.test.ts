@@ -5,9 +5,10 @@ import { MemoryStorage } from "./helpers";
 
 function setup() {
   const storage = new MemoryStorage();
-  const bridge: ToolUiBridge = {
-    selectEvent: vi.fn(),
-    showPendingRegistration: vi.fn(),
+    const bridge: ToolUiBridge = {
+      selectEvent: vi.fn(),
+      showSchedule: vi.fn(),
+      showPendingRegistration: vi.fn(),
     refreshPasses: vi.fn(),
     logActivity: vi.fn(),
   };
@@ -15,12 +16,12 @@ function setup() {
 }
 
 describe("WebMCP tool contract", () => {
-  it("exposes nine unique, valid tool names and serializable schemas", () => {
+  it("exposes ten unique, valid tool names and serializable schemas", () => {
     const { tools } = setup();
     const names = tools.map((tool) => tool.name);
 
-    expect(tools).toHaveLength(9);
-    expect(new Set(names).size).toBe(9);
+    expect(tools).toHaveLength(10);
+    expect(new Set(names).size).toBe(10);
     for (const tool of tools) {
       expect(tool.name).toMatch(/^[A-Za-z0-9_.-]{1,128}$/);
       expect(tool.name.length).toBeLessThanOrEqual(30);
@@ -44,6 +45,15 @@ describe("WebMCP tool contract", () => {
 
     expect(result).toMatchObject({ count: 1 });
     expect((result as { events: Array<{ id: string }> }).events[0]?.id).toBe("bkk-riverside-5");
+  });
+
+  it("builds a chronological schedule and updates the shared week board", async () => {
+    const { tools, bridge } = setup();
+    const tool = tools.find((candidate) => candidate.name === "plan_run_schedule")!;
+    const result = await tool.execute({ city: "Bangkok", pace: "social" });
+
+    expect(result).toMatchObject({ count: 2, total_distance_km: 8, next_event_id: "bkk-riverside-5" });
+    expect(bridge.showSchedule).toHaveBeenCalledWith({ city: "Bangkok", pace: "social" });
   });
 
   it("prepares registration without finalizing it and requests visible human review", async () => {
@@ -137,6 +147,7 @@ describe("WebMCP tool contract", () => {
   it("keeps representative tool outputs inside the recommended 1.5K-character budget", async () => {
     const { tools } = setup();
     const cases: Array<[string, Record<string, unknown>]> = [
+      ["plan_run_schedule", {}],
       ["discover_run_events", { city: "Bangkok", distance_km: 5 }],
       ["compare_run_events", { event_ids: ["bkk-riverside-5", "bkk-oldtown-7"] }],
       ["get_run_event_details", { event_id: "bkk-riverside-5" }],

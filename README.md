@@ -2,21 +2,22 @@
 
 > Working label only. The participant will choose the final Devpost project name.
 
-A Thai-first, WebMCP-native event experience where people and browser agents discover runs, compare facts, check participation rules, prepare registration, and plan a safe journey home together.
+A Thai-first Runner Agent that turns a runner's preferences into an actionable run schedule. It can shortlist and compare events, open the chosen run, check participation readiness, plan the journey home, and prepare a Run Pass for visible human confirmation—without requiring an account.
 
-The human interface and WebMCP tools share the same domain logic and browser state. WebMCP is a progressive enhancement: the site stays fully functional without browser support, while compatible browsers receive nine structured tools through `document.modelContext.registerTool()`.
+The Runner Agent week board and ten WebMCP actions share the same domain logic and browser state. People can use the planner directly in any browser; compatible browsers can let an external agent drive the same actions through `document.modelContext.registerTool()`.
 
 ## Why this fits WebMCP
 
-A normal event site makes an agent interpret filters, cards, drawers, safety copy, and forms one control at a time. This project exposes the intent directly:
+The Runner Agent completes a concrete sequence for the runner:
 
-1. Discover a shortlist using structured preferences.
-2. Compare event facts without scraping.
-3. Read safety and responsible-social rules.
-4. Apply deterministic readiness gates.
-5. Prepare a registration without silently finalizing it.
-6. Let the human review and confirm in the shared interface.
-7. Return a safe transport plan and locally stored run pass.
+1. Build a chronological week board from city, distance, pace, and social preferences.
+2. Shortlist and compare run dates, start times, prices, places, pace groups, and return options.
+3. Open the chosen event in the shared visible interface.
+4. Read the relevant participation and responsible-social rules.
+5. Apply deterministic readiness gates from runner-provided declarations.
+6. Plan a safe journey home.
+7. Prepare a registration, stop, and hand the final confirmation to the runner.
+8. Read locally stored passes with emergency-contact data redacted.
 
 This demonstrates the WebMCP goal of a shared, user-controlled human-and-agent workflow rather than a prompt wrapper.
 
@@ -39,7 +40,7 @@ For WebMCP in Google Chrome 149 or later, enable `chrome://flags/#enable-webmcp-
 npm run check
 ```
 
-This runs domain, safety, privacy-redaction, WebMCP contract, browser-registration, and production-build checks.
+This runs the no-login Runner Agent UI flow, schedule planning, domain behavior, safety, privacy redaction, WebMCP contracts, browser registration mocks, and the production build.
 
 After enabling native WebMCP, run the four live-agent scenarios in [WEBMCP_LIVE_QA.md](./WEBMCP_LIVE_QA.md). They separately prove tool discovery, intent routing, schema-bypass resistance, visible human confirmation, privacy redaction, and cancellation control.
 
@@ -47,6 +48,7 @@ After enabling native WebMCP, run the four live-agent scenarios in [WEBMCP_LIVE_
 
 | Tool | Role | Human-control behavior |
 | --- | --- | --- |
+| `plan_run_schedule` | Build and display a chronological week board from runner preferences | Updates the same visible schedule used by the human interface |
 | `discover_run_events` | Search by city, distance, pace, date, and social preference | Updates activity log |
 | `compare_run_events` | Compare 2–3 events | Read-only |
 | `get_run_event_details` | Return details and open the same event in the UI | Visible shared state |
@@ -83,7 +85,7 @@ src/
   data.ts        Demo event catalog and club rules
   domain.ts      Search, comparison, readiness, registration, persistence
   main.ts        Human UI and shared-state bridge
-  webmcp.ts      Nine imperative WebMCP tool definitions and registration
+  webmcp.ts      Ten imperative WebMCP tool definitions and registration
   styles.css     Responsive visual system
 tests/           Domain, safety, privacy, and WebMCP integration tests
 ```

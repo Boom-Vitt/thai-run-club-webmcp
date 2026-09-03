@@ -4,19 +4,19 @@ The final project name must be chosen by the participant before recording. Keep 
 
 ## 0:00–0:12 — Show it working immediately
 
-Visual: Landing page, then the browser agent request appears.
+Visual: Open on the Runner Agent Week Board. Set Bangkok, 5 KM, social pace, and alcohol-free, then submit the request.
 
 Narration:
 
-> This is a Thailand run-club experience designed for people and their agents. I can ask for a relaxed Bangkok five-kilometer run with an alcohol-free option and a safe plan home.
+> This is my Runner Agent. Without creating an account, I can ask it to build my run week, compare the best fit, check what I need, and prepare the next action.
 
-## 0:12–0:38 — Structured discovery
+## 0:12–0:38 — Build the run week
 
-Visual: Agent calls `discover_run_events`; the matching event becomes visible. Briefly expose the tool activity panel.
+Visual: Agent calls `plan_run_schedule`; the shared week board and event catalog both update to the matching Bangkok 5K.
 
 Narration:
 
-> Instead of scraping cards and guessing controls, the agent calls a WebMCP tool with a bounded JSON Schema. It gets dates, pace groups, capacity, choices, and match reasons as structured data.
+> The agent turns my city, distance, pace, and social choice into a chronological schedule I can use immediately. The same result appears on my screen, ready to open or compare.
 
 ## 0:38–0:58 — Compare and share context
 
@@ -24,7 +24,7 @@ Visual: Call `compare_run_events`, then `get_run_event_details`; open the same d
 
 Narration:
 
-> The agent can compare two or three runs and then open the chosen event in the same interface I see. Human and agent share application state.
+> It compares two or three runs by date, pace, price, places, social options, and the journey home, then opens the selected event in the same interface I see.
 
 ## 0:58–1:24 — Rules and safety
 
@@ -52,15 +52,15 @@ Narration:
 
 ## 2:10–2:25 — Why WebMCP
 
-Visual: Fast montage of the nine tools, mobile layout, tests passing.
+Visual: Fast montage of the ten Runner Agent actions, mobile layout, and tests passing.
 
 Narration:
 
-> Nine WebMCP tools turn a complex event workflow into one reliable collaboration while preserving a complete human product. It is faster, safer, and more accurate than visual actuation—and it works as a progressive enhancement.
+> Ten WebMCP actions let this Runner Agent scout, sort, check, and hand off a complete run plan. It is useful on the page today, and a WebMCP browser lets an external agent execute the same workflow.
 
 ## Recording checklist
 
-- Start already logged in and on the working page.
+- Start on the working Week Board; no product login is required.
 - Show the real tool call in the first 15 seconds.
 - Use one strong end-to-end example.
 - Cut loading, typing, dead air, and repeated features.
