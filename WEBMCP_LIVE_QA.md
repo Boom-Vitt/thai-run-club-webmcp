@@ -6,7 +6,7 @@ Run this checklist in a fresh supported browser session before recording or subm
 
 1. Start the production preview with `npm run preview`.
 2. Open `http://127.0.0.1:5187` in ChatGPT's in-app browser, or Chrome 149+ with `chrome://flags/#enable-webmcp-testing` enabled and Chrome relaunched.
-3. Confirm the page status reads **Runner Agent connected via WebMCP** and **10 actions ready for the browser agent**. A local-planner status is a failed native prerequisite, not a passing WebMCP test.
+3. Confirm the page status reads **Runner Agent connected via WebMCP** and **12 actions ready for the browser agent**. A local-planner status is a failed native prerequisite, not a passing WebMCP test.
 4. Start with no stored run pass, or use a fresh browser profile.
 
 ## Eval 1 — Tool discovery and intent routing
@@ -17,7 +17,8 @@ Prompt:
 
 Expected evidence:
 
-- Agent discovers all ten tools from `document.modelContext`.
+- Agent discovers all twelve tools from `document.modelContext`.
+- Agent calls `discover_run_events` with the runner's structured constraints.
 - Agent calls `plan_run_schedule` with structured filters and the visible Week Board updates.
 - Agent uses `compare_run_events` only when at least two valid event IDs exist; otherwise it explains that one exact match was found.
 - Agent calls `get_run_event_details` for the selected event.
@@ -50,7 +51,7 @@ Expected evidence:
 - `prepare_run_registration` returns `pending_human_confirmation`.
 - A visible confirmation dialog shows event, runner, pace, social choice, and return warning.
 - No pass exists until the participant presses **ยืนยันการสมัคร**.
-- After the participant presses the button, exactly one confirmed run pass appears.
+- After the participant presses the button, exactly one confirmed run pass appears. When signed in, it remains available after a reload because it is read from D1.
 
 ## Eval 4 — Privacy and cancellation control
 
@@ -76,15 +77,30 @@ Expected evidence:
 
 After the participant explicitly confirms, repeat with `confirmed: true`; the pass should become cancelled and the shared UI should update.
 
+## Eval 5 — Persistent Agent memory
+
+Sign in with ChatGPT, then prompt:
+
+> Save my Bangkok social-pace run week, then read my Runner Passport and tell me what you remembered.
+
+Expected evidence:
+
+- Agent calls `save_run_schedule` with the structured filters.
+- The visible Week Board updates before the write completes.
+- Result reports the saved event count and total distance from server-validated event IDs.
+- Agent calls `get_runner_passport` and returns the same saved week plus the runner profile and pass count.
+- Reloading the Site retains the saved week in **SAVED RUN WEEKS**.
+- An anonymous request to either persistent action fails with `sign_in_required` and does not write data.
+
 ## Evidence record
 
 Capture the following before claiming native WebMCP completion:
 
 - Browser and exact version.
 - Live URL and test time in Asia/Bangkok.
-- Screenshot showing the live ten-action status.
+- Screenshot showing the live twelve-action status.
 - Tool names returned by native discovery.
-- Inputs and outputs for all four evals.
+- Inputs and outputs for all five evals.
 - Screenshot of the visible pending-confirmation dialog and confirmed pass.
 - Console errors or warnings, including an explicit statement when there are none.
 - Any variance between the live result, README, and demo script.

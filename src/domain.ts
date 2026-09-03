@@ -231,6 +231,10 @@ export function readPendingRegistration(storage: Storage): RegistrationInput | n
   }
 }
 
+export function clearPendingRegistration(storage: Storage): void {
+  storage.removeItem(STORAGE_KEYS.pendingRegistration);
+}
+
 export function readRegistrations(storage: Storage): Registration[] {
   const raw = storage.getItem(STORAGE_KEYS.registrations);
   if (!raw) return [];

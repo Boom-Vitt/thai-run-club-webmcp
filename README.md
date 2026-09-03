@@ -2,9 +2,9 @@
 
 > Working label only. The participant will choose the final Devpost project name.
 
-A Thai-first Runner Agent that turns a runner's preferences into an actionable run schedule. It can shortlist and compare events, open the chosen run, check participation readiness, plan the journey home, and prepare a Run Pass for visible human confirmation—without requiring an account.
+A Thai-first Runner Agent that turns a runner's preferences into an actionable run schedule. It can shortlist and compare events, open the chosen run, check participation readiness, plan the journey home, and prepare a Run Pass for visible human confirmation—without requiring an account. Optional ChatGPT sign-in unlocks a D1-backed Runner Passport that remembers the runner's profile, saved weeks, and confirmed passes across visits.
 
-The Runner Agent week board and ten WebMCP actions share the same domain logic and browser state. People can use the planner directly in any browser; compatible browsers can let an external agent drive the same actions through `document.modelContext.registerTool()`.
+The Runner Agent week board and twelve WebMCP actions share the same domain logic, visible state, and persistence APIs. People can use the planner directly in any browser; compatible browsers can let an external agent drive the same actions through `document.modelContext.registerTool()`.
 
 ## Why this fits WebMCP
 
@@ -17,7 +17,8 @@ The Runner Agent completes a concrete sequence for the runner:
 5. Apply deterministic readiness gates from runner-provided declarations.
 6. Plan a safe journey home.
 7. Prepare a registration, stop, and hand the final confirmation to the runner.
-8. Read locally stored passes with emergency-contact data redacted.
+8. Save the exact week to a signed-in Runner Passport and continue from remembered goals later.
+9. Read browser-local guest passes or persistent signed-in passes with emergency-contact data redacted.
 
 This demonstrates the WebMCP goal of a shared, user-controlled human-and-agent workflow rather than a prompt wrapper.
 
@@ -27,6 +28,7 @@ Requirements: Node.js 22+ and npm.
 
 ```bash
 npm install
+npm run db:migrate:local
 npm run dev
 ```
 
@@ -40,15 +42,17 @@ For WebMCP in Google Chrome 149 or later, enable `chrome://flags/#enable-webmcp-
 npm run check
 ```
 
-This runs the no-login Runner Agent UI flow, schedule planning, domain behavior, safety, privacy redaction, WebMCP contracts, browser registration mocks, and the production build.
+This runs the guest Runner Agent UI flow, signed-in Passport rendering, schedule planning, domain behavior, safety, privacy redaction, WebMCP contracts, browser registration mocks, Worker type checks, and the production build.
 
-After enabling native WebMCP, run the four live-agent scenarios in [WEBMCP_LIVE_QA.md](./WEBMCP_LIVE_QA.md). They separately prove tool discovery, intent routing, schema-bypass resistance, visible human confirmation, privacy redaction, and cancellation control.
+After enabling native WebMCP, run the five live-agent scenarios in [WEBMCP_LIVE_QA.md](./WEBMCP_LIVE_QA.md). They separately prove tool discovery, intent routing, persistent Agent memory, schema-bypass resistance, visible human confirmation, privacy redaction, and cancellation control.
 
 ## WebMCP tools
 
 | Tool | Role | Human-control behavior |
 | --- | --- | --- |
 | `plan_run_schedule` | Build and display a chronological week board from runner preferences | Updates the same visible schedule used by the human interface |
+| `save_run_schedule` | Persist the exact matching week to D1 | Requires ChatGPT sign-in and updates the visible Passport |
+| `get_runner_passport` | Read profile, remembered weeks, and pass count | Returns only the current signed-in runner's records |
 | `discover_run_events` | Search by city, distance, pace, date, and social preference | Updates activity log |
 | `compare_run_events` | Compare 2–3 events | Read-only |
 | `get_run_event_details` | Return details and open the same event in the UI | Visible shared state |
@@ -56,7 +60,7 @@ After enabling native WebMCP, run the four live-agent scenarios in [WEBMCP_LIVE_
 | `check_participation_readiness` | Apply age, symptoms, hydration, transport, and event rules | A blocked result cannot be overridden |
 | `get_safe_return_options` | Return transit, taxi, walking, and sober-driver options | Never recommends driving after drinking |
 | `prepare_run_registration` | Validate and stage a registration | Never finalizes; human must press the visible confirmation button |
-| `get_my_run_passes` | List locally stored passes | Emergency-contact data is redacted |
+| `get_my_run_passes` | List persistent signed-in passes or browser-local guest passes | Emergency-contact data is redacted |
 | `cancel_run_registration` | Cancel a pass | Requires an explicit `confirmed: true` input |
 
 All tools use bounded JSON Schemas with `additionalProperties: false`. Read-only tools declare `readOnlyHint: true`; state-changing tools declare `readOnlyHint: false` and treat echoed user content as untrusted.
@@ -84,9 +88,15 @@ Use [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) for the under-three-minute judging video.
 src/
   data.ts        Demo event catalog and club rules
   domain.ts      Search, comparison, readiness, registration, persistence
+  passport.ts    Identity-aware client for Runner Passport APIs
   main.ts        Human UI and shared-state bridge
-  webmcp.ts      Ten imperative WebMCP tool definitions and registration
+  webmcp.ts      Twelve imperative WebMCP tool definitions and registration
   styles.css     Responsive visual system
+worker/
+  index.ts       Authenticated Cloudflare Worker API and D1 ownership checks
+db/
+  schema.ts      Runner profile, saved-week, and Run Pass schema
+drizzle/         Versioned D1 migration and metadata
 tests/           Domain, safety, privacy, and WebMCP integration tests
 ```
 

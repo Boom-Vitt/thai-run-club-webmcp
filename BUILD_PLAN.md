@@ -12,6 +12,7 @@ Build a bilingual, mobile-first event platform where a runner and their browser 
 4. Check whether the runner is ready to join without providing medical diagnosis.
 5. Register for the run after an explicit user confirmation.
 6. Produce a clear event-day plan and safe journey-home options.
+7. Optionally sign in to save a Runner Passport, remembered weeks, and confirmed Run Passes.
 
 The beer component is an optional, post-run social stop at a licensed venue. Registration never includes, discounts, gives away, sells, or requires alcohol. Alcohol-free choices are first-class.
 
@@ -77,10 +78,17 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
   - Inputs: event and preferred mode.
   - Output: walking/transit/taxi/ride-with-sober-driver options; never recommends driving after drinking.
 - `get_my_run_passes`
-  - Inputs: optional email.
-  - Output: locally stored demo registrations.
+  - Inputs: none.
+  - Output: D1-backed signed-in passes or browser-local guest passes, with emergency contact redacted.
+- `get_runner_passport`
+  - Inputs: none.
+  - Output: current runner profile, remembered weeks, and pass count from D1.
 
 ### Consequential tools
+
+- `save_run_schedule`
+  - Inputs: city, distance, pace, social preference, and alcohol-free requirement.
+  - Persists the exact matching week for the authenticated runner and updates the visible board.
 
 - `prepare_run_registration`
   - Inputs: event, runner name, email, emergency contact, pace group, age declaration, alcohol preference, rules acceptance, privacy acceptance.
@@ -115,7 +123,9 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 
 - Vite + TypeScript, framework-free to reduce build risk and bundle size.
 - Data and domain logic separated from DOM rendering.
-- `localStorage` persistence for demo registrations and staged confirmations.
+- Cloudflare Worker API with stable Sites authenticated-user headers and per-user authorization.
+- D1 persistence for profiles, saved weeks, and signed-in Run Passes; `localStorage` remains only for guest passes and staged confirmation.
+- Drizzle-owned schema migrations with indexed per-runner reads.
 - Imperative WebMCP registration through `document.modelContext.registerTool()`.
 - WebMCP compatibility fallback and a development-only in-page tool harness for deterministic verification.
 - Vitest for domain logic, schemas, tool execution, safety gates, and persistence behavior.
@@ -124,12 +134,12 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 ## 8. Acceptance criteria
 
 - [x] Human UI supports discovery, details, rules, readiness, registration, pass, and return plan.
-- [x] Ten meaningful WebMCP tools register with bounded JSON Schemas.
+- [x] Twelve meaningful WebMCP tools register with bounded JSON Schemas.
 - [x] Read-only tools are annotated correctly and return structured results.
 - [x] Consequential registration requires a visible, explicit human confirmation.
 - [x] WebMCP tool execution updates the same state and UI used by humans.
 - [x] Safety and alcohol rules block under-age alcohol selection, pre-run drinking, schema-bypass attempts, and driving-after-drinking flows.
-- [x] All 23 automated tests and the production build pass.
+- [x] Automated tests and the server-backed production build pass.
 - [x] App listens on `127.0.0.1:5187`; port was verified unused before launch.
 - [ ] Browser smoke test proves core flow, but responsive viewport evidence remains pending because the connected browser ignored viewport override.
 - [ ] WebMCP-capable browser test proves tool discovery and at least one end-to-end tool call.

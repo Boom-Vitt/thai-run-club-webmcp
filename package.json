@@ -5,16 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5187 --strictPort",
-    "build": "tsc -b && vite build",
+    "prebuild": "node scripts/clean-build.mjs",
+    "build": "tsc -b && tsc -p tsconfig.worker.json && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5187 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply thai-run-club-local --local",
     "check": "npm run test && npm run build"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.3",
+    "@cloudflare/workers-types": "^5.20260903.1",
+    "@openai/sites-vite-plugin": "^0.2.0",
+    "drizzle-kit": "^0.31.10",
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.128.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2"
   }
 }

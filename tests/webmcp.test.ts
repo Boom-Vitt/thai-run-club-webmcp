@@ -1,27 +1,35 @@
 import { describe, expect, it, vi } from "vitest";
 import { createToolDefinitions, type ToolUiBridge } from "../src/webmcp";
-import { confirmPendingRegistration } from "../src/domain";
+import { confirmPendingRegistration, readRegistrations } from "../src/domain";
 import { MemoryStorage } from "./helpers";
 
 function setup() {
   const storage = new MemoryStorage();
-    const bridge: ToolUiBridge = {
-      selectEvent: vi.fn(),
-      showSchedule: vi.fn(),
-      showPendingRegistration: vi.fn(),
+  const bridge: ToolUiBridge = {
+    selectEvent: vi.fn(),
+    showSchedule: vi.fn(),
+    showPendingRegistration: vi.fn(),
     refreshPasses: vi.fn(),
+    readPassport: vi.fn(async () => ({ profile: null, savedWeeks: [], runPassCount: 0 })),
+    saveSchedule: vi.fn(async () => ({ id: "WEEK-test" })),
+    readRunPasses: vi.fn(async () => readRegistrations(storage).map((registration) => {
+      const safe = { ...registration } as Partial<typeof registration>;
+      delete safe.emergencyContact;
+      return safe;
+    })),
+    cancelRunPass: vi.fn(async () => ({ status: "cancelled" })),
     logActivity: vi.fn(),
   };
   return { storage, bridge, tools: createToolDefinitions(storage, bridge) };
 }
 
 describe("WebMCP tool contract", () => {
-  it("exposes ten unique, valid tool names and serializable schemas", () => {
+  it("exposes twelve unique, valid tool names and serializable schemas", () => {
     const { tools } = setup();
     const names = tools.map((tool) => tool.name);
 
-    expect(tools).toHaveLength(10);
-    expect(new Set(names).size).toBe(10);
+    expect(tools).toHaveLength(12);
+    expect(new Set(names).size).toBe(12);
     for (const tool of tools) {
       expect(tool.name).toMatch(/^[A-Za-z0-9_.-]{1,128}$/);
       expect(tool.name.length).toBeLessThanOrEqual(30);
@@ -54,6 +62,18 @@ describe("WebMCP tool contract", () => {
 
     expect(result).toMatchObject({ count: 2, total_distance_km: 8, next_event_id: "bkk-riverside-5" });
     expect(bridge.showSchedule).toHaveBeenCalledWith({ city: "Bangkok", pace: "social" });
+  });
+
+  it("persists the exact schedule through the Runner Passport bridge", async () => {
+    const { tools, bridge } = setup();
+    const tool = tools.find((candidate) => candidate.name === "save_run_schedule")!;
+    const result = await tool.execute({ city: "Bangkok", pace: "social" });
+
+    expect(result).toMatchObject({ saved: true, event_count: 2, total_distance_km: 8 });
+    expect(bridge.saveSchedule).toHaveBeenCalledWith(
+      { city: "Bangkok", pace: "social" },
+      ["bkk-riverside-5", "bkk-green-3"],
+    );
   });
 
   it("prepares registration without finalizing it and requests visible human review", async () => {
@@ -148,6 +168,8 @@ describe("WebMCP tool contract", () => {
     const { tools } = setup();
     const cases: Array<[string, Record<string, unknown>]> = [
       ["plan_run_schedule", {}],
+      ["save_run_schedule", { city: "Bangkok", pace: "social" }],
+      ["get_runner_passport", {}],
       ["discover_run_events", { city: "Bangkok", distance_km: 5 }],
       ["compare_run_events", { event_ids: ["bkk-riverside-5", "bkk-oldtown-7"] }],
       ["get_run_event_details", { event_id: "bkk-riverside-5" }],

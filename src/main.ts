@@ -1,7 +1,9 @@
 import "./styles.css";
 import { CLUB_RULES, EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
 import {
+  cancelRegistration,
   checkReadiness,
+  clearPendingRegistration,
   confirmPendingRegistration,
   discoverEvents,
   findEvent,
@@ -16,10 +18,24 @@ import type {
   City,
   EventFilters,
   PaceBand,
+  Registration,
   RegistrationInput,
   SocialOption,
   TransportMode,
 } from "./types";
+import {
+  cancelPersistentRunPass,
+  chatGptSignInPath,
+  chatGptSignOutPath,
+  getRunnerPassport,
+  getRunnerSession,
+  persistRunPass,
+  persistRunPlan,
+  updateRunnerProfile,
+  type PassportData,
+  type PassportRunPass,
+  type SessionData,
+} from "./passport";
 import { registerWebMcpTools } from "./webmcp";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -30,6 +46,9 @@ const state: {
   selectedEventId: string | null;
   activities: ActivityEntry[];
   webMcpSupported: boolean;
+  session: SessionData | null;
+  passport: PassportData | null;
+  passportStatus: "loading" | "guest" | "ready" | "error";
 } = {
   filters: {},
   selectedEventId: null,
@@ -43,6 +62,9 @@ const state: {
     },
   ],
   webMcpSupported: false,
+  session: null,
+  passport: null,
+  passportStatus: "loading",
 };
 
 function escapeHtml(value: string): string {
@@ -99,27 +121,32 @@ function renderShell() {
       </a>
       <nav aria-label="เมนูหลัก">
         <a href="#runner-agent">Agent</a>
+        <a href="#passport">Passport</a>
         <a href="#events">Schedule</a>
         <a href="#rules">Rules</a>
       </nav>
-      <button class="header-pass" id="showPassesButton" type="button">
-        My run pass <span id="passCount">0</span>
-      </button>
+      <div class="header-actions">
+        <a class="header-account" id="headerAccount" href="#passport">Guest</a>
+        <button class="header-pass" id="showPassesButton" type="button">
+          My run pass <span id="passCount">0</span>
+        </button>
+      </div>
     </header>
 
     <main id="top">
       <section class="hero section-shell" id="runner-agent" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> RUNNER AGENT · NO ACCOUNT NEEDED</p>
+          <p class="eyebrow"><span></span> RUNNER AGENT · GUEST READY · PASSPORT OPTIONAL</p>
           <h1 id="hero-title">YOUR RUN WEEK.<br /><em>READY TO GO.</em></h1>
-          <p class="hero-lead">เพื่อนวิ่งที่ช่วยหา run ให้ตรงเพซ จัดตาราง เปรียบเทียบงาน เช็กความพร้อม วางทางกลับ และเตรียม Run Pass ให้คุณตรวจ—เปิดเว็บแล้วใช้ได้เลย ไม่ต้องล็อกอิน</p>
+          <p class="hero-lead">เพื่อนวิ่งที่ช่วยหา run ให้ตรงเพซ จัดตาราง เปรียบเทียบงาน เช็กความพร้อม วางทางกลับ และเตรียม Run Pass ให้คุณตรวจ—เปิดแล้วใช้ได้ทันที หรือ sign in เพื่อให้ Agent จำสัปดาห์ของคุณ</p>
           <div class="hero-actions">
             <a class="button button-primary" href="#agent-planner">ให้ Agent จัดตาราง <span>↘</span></a>
             <a class="button button-ghost" href="#events">ดู run ทั้งหมด <span>→</span></a>
           </div>
           <div class="hero-proof" aria-label="ข้อมูลสำคัญ">
             <span><strong>${EVENTS.length}</strong> runs in schedule</span>
-            <span><strong>10</strong> agent actions</span>
+            <span><strong>12</strong> agent actions</span>
+            <span><strong>D1</strong> runner memory</span>
             <span><strong>1</strong> human final call</span>
           </div>
           <div class="agent-promise-grid" aria-label="สิ่งที่ Runner Agent ช่วยได้">
@@ -130,7 +157,7 @@ function renderShell() {
           </div>
         </div>
         <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">
-          <div class="agent-desk-top"><span>R/ AGENT RELAY</span><strong>WEEK BOARD</strong><i>READY</i></div>
+          <div class="agent-desk-top"><span>R/ AGENT RELAY</span><strong>WEEK BOARD</strong><i id="agentIdentityMode">GUEST</i></div>
           <div class="agent-desk-intro">
             <p>บอกเป้าหมายวันนี้</p>
             <h2 id="agent-planner-title">อยากวิ่งแบบไหน?</h2>
@@ -145,11 +172,31 @@ function renderShell() {
           <button class="agent-preset" type="button" data-agent-preset="bangkok-easy">ลองตัวอย่าง: Bangkok 5K · social pace · alcohol-free</button>
           <div class="agent-plan-summary" id="agentPlanSummary" role="status" aria-live="polite"></div>
           <div class="agent-schedule-board" id="agentScheduleBoard"></div>
+          <div class="agent-save-bar">
+            <p id="saveWeekHint">จัดตารางได้ทันที · Sign in เมื่อต้องการให้ Agent จำ</p>
+            <button id="saveWeekButton" type="button">SAVE TO PASSPORT <span>↗</span></button>
+          </div>
         </section>
       </section>
 
       <section class="ticker" aria-label="หลักการกิจกรรม">
         <div>BUILD MY WEEK <span>✦</span> FIND MY PACE <span>✦</span> CHECK MY RUN <span>✦</span> PLAN MY WAY HOME <span>✦</span> HAND ME THE FINAL CALL <span>✦</span></div>
+      </section>
+
+      <section class="passport-section section-shell" id="passport" aria-labelledby="passport-title">
+        <div class="passport-heading">
+          <p class="eyebrow"><span></span> PERSISTENT RUNNER MEMORY</p>
+          <h2 id="passport-title">RUNNER<br /><em>PASSPORT.</em></h2>
+          <p>พื้นที่ส่วนตัวที่ให้ Runner Agent จำเมือง เพซ เป้าหมาย ตารางที่บันทึก และ Run Pass ของคุณข้ามการเปิดเว็บครั้งถัดไป</p>
+        </div>
+        <div class="passport-grid">
+          <article class="passport-card" id="passportCard" aria-live="polite">
+            <div class="passport-loading"><span>R/</span><p>กำลังเปิด Runner Passport…</p></div>
+          </article>
+          <section class="passport-ledger" id="passportLedger" aria-label="Saved run weeks">
+            <div class="passport-loading"><span>00</span><p>กำลังอ่านตารางที่บันทึก…</p></div>
+          </section>
+        </div>
       </section>
 
       <section class="events-section section-shell" id="events" aria-labelledby="events-title">
@@ -223,7 +270,7 @@ function renderShell() {
             </div>
           </div>
           <div class="agent-console" aria-label="WebMCP activity">
-            <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">10 actions</small></div>
+            <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">12 actions</small></div>
             <div class="console-prompt">
               <span>YOU</span>
               <p id="agentPromptText">“เปิดตารางวิ่งทั้งหมด แล้วช่วยจัดลำดับสิ่งที่ฉันทำต่อได้”</p>
@@ -267,7 +314,7 @@ function renderShell() {
         <div class="passes-copy">
           <p class="eyebrow"><span></span> YOUR NEXT RUN</p>
           <h2 id="passes-title">RUN PASSES</h2>
-          <p>ข้อมูลเดโมเก็บอยู่ใน browser นี้เท่านั้น Agent เตรียมได้ แต่คุณต้องเป็นคนยืนยันการสมัครบนหน้าจอ</p>
+          <p>Guest เก็บ Run Pass ใน browser นี้ ส่วนผู้ที่ sign in จะบันทึกอย่างถาวรใน Runner Passport โดย Agent เตรียมได้ แต่คุณต้องเป็นคนยืนยันการสมัครบนหน้าจอ</p>
         </div>
         <div class="passes-list" id="passesList"></div>
       </section>
@@ -315,6 +362,174 @@ function filterDescription(filters: EventFilters): string {
     filters.socialPreference ? SOCIAL_LABELS[filters.socialPreference] : undefined,
   ].filter(Boolean);
   return details.length > 0 ? details.join(" · ") : "ทุกเมือง · ทุกระยะ · เรียงตามวัน";
+}
+
+function runnerInitials(value: string): string {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "R/";
+  return words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join("");
+}
+
+function renderPassport() {
+  const card = document.querySelector<HTMLElement>("#passportCard");
+  const ledger = document.querySelector<HTMLElement>("#passportLedger");
+  const headerAccount = document.querySelector<HTMLAnchorElement>("#headerAccount");
+  const identityMode = document.querySelector<HTMLElement>("#agentIdentityMode");
+  const saveHint = document.querySelector<HTMLElement>("#saveWeekHint");
+  if (!card || !ledger || !headerAccount || !identityMode || !saveHint) return;
+
+  if (state.passportStatus === "loading") return;
+
+  if (state.passportStatus === "error") {
+    card.innerHTML = `
+      <div class="passport-state passport-error">
+        <span>OFFLINE /</span><h3>เปิด Passport ไม่สำเร็จ</h3>
+        <p>ตารางแบบ guest ยังใช้งานได้ตามปกติ แล้วลองเชื่อม Runner Passport อีกครั้ง</p>
+        <button type="button" id="retryPassport">ลองอีกครั้ง ↻</button>
+      </div>`;
+    ledger.innerHTML = `<div class="passport-empty"><span>LOCAL MODE</span><p>แผนใหม่ยังจัดได้ แต่จะยังไม่ถูกบันทึกลงฐานข้อมูล</p></div>`;
+    document.querySelector<HTMLButtonElement>("#retryPassport")?.addEventListener("click", () => void initializePassport());
+    return;
+  }
+
+  if (!state.session?.authenticated || !state.session.user) {
+    const signIn = chatGptSignInPath("/#passport");
+    headerAccount.textContent = "Sign in";
+    headerAccount.href = signIn;
+    headerAccount.target = "_top";
+    identityMode.textContent = "GUEST";
+    saveHint.textContent = "แผนพร้อมใช้แล้ว · Sign in เมื่อต้องการให้ Agent จำ";
+    card.innerHTML = `
+      <div class="passport-cover">
+        <div><span>R/</span><small>RUNNER ID / OPTIONAL</small></div>
+        <strong>GUEST<br />RUNNER</strong>
+        <p>ไม่ต้องมีบัญชีก็จัดตาราง ดูรายละเอียด เช็กความพร้อม และเตรียม Run Pass ได้</p>
+        <a class="passport-signin" href="${signIn}" target="_top">SIGN IN WITH CHATGPT <span>↗</span></a>
+        <small>Sign in เฉพาะเมื่อต้องการบันทึกข้อมูลข้ามอุปกรณ์และการเปิดเว็บครั้งถัดไป</small>
+      </div>`;
+    ledger.innerHTML = `
+      <div class="passport-ledger-head"><div><span>AGENT MEMORY</span><h3>WHAT GETS SAVED</h3></div><strong>03</strong></div>
+      <div class="passport-memory-list">
+        <article><b>01</b><div><strong>Runner profile</strong><p>เมือง เพซ และเป้าหมายรายสัปดาห์</p></div></article>
+        <article><b>02</b><div><strong>Saved run weeks</strong><p>ตารางที่ Agent จัดและตัวกรองที่ใช้</p></div></article>
+        <article><b>03</b><div><strong>Run Passes</strong><p>รายการที่คุณตรวจและกดยืนยันเองแล้ว</p></div></article>
+      </div>`;
+    return;
+  }
+
+  const passport = state.passport;
+  const user = state.session.user;
+  const profile = passport?.profile ?? state.session.profile;
+  const savedPlans = passport?.savedPlans ?? [];
+  const passes = passport?.passes ?? [];
+  const activePasses = passes.filter((pass) => pass.status === "confirmed").length;
+  const displayName = profile?.displayName ?? user.displayName;
+  headerAccount.textContent = runnerInitials(displayName);
+  headerAccount.href = "#passport";
+  headerAccount.removeAttribute("target");
+  identityMode.textContent = "MEMORY ON";
+  saveHint.textContent = `${savedPlans.length} saved week${savedPlans.length === 1 ? "" : "s"} · Agent memory is on`;
+
+  card.innerHTML = `
+    <div class="passport-id-row"><span class="passport-avatar">${escapeHtml(runnerInitials(displayName))}</span><div><small>RUNNER PASSPORT / ACTIVE</small><h3>${escapeHtml(displayName)}</h3><p>${escapeHtml(user.email)}</p></div><i>DB<br />LIVE</i></div>
+    <div class="passport-stamps" aria-label="Runner profile summary">
+      <div><small>HOME</small><strong>${escapeHtml(profile?.homeCity ?? "OPEN")}</strong><span>01 / CITY</span></div>
+      <div><small>PACE</small><strong>${profile?.preferredPace ? escapeHtml(PACE_LABELS[profile.preferredPace]) : "OPEN"}</strong><span>02 / BAND</span></div>
+      <div><small>GOAL</small><strong>${profile?.weeklyGoalKm ?? 10} KM</strong><span>03 / WEEK</span></div>
+    </div>
+    <form class="passport-form" id="passportProfileForm">
+      <label><span>ชื่อบน Passport</span><input name="displayName" maxlength="80" value="${escapeHtml(displayName)}" required /></label>
+      <label><span>เมืองหลัก</span><select name="homeCity"><option value="">ยังไม่เลือก</option>${["Bangkok", "Chiang Mai", "Phuket", "Khon Kaen"].map((city) => `<option${profile?.homeCity === city ? " selected" : ""}>${city}</option>`).join("")}</select></label>
+      <label><span>เพซที่ชอบ</span><select name="preferredPace"><option value="">ยังไม่เลือก</option>${(["social", "steady", "tempo"] as PaceBand[]).map((pace) => `<option value="${pace}"${profile?.preferredPace === pace ? " selected" : ""}>${PACE_LABELS[pace]}</option>`).join("")}</select></label>
+      <label><span>เป้าหมาย / สัปดาห์</span><input name="weeklyGoalKm" type="number" min="1" max="100" value="${profile?.weeklyGoalKm ?? 10}" required /></label>
+      <button type="submit">UPDATE PASSPORT <span>→</span></button>
+    </form>
+    <a class="passport-signout" href="${chatGptSignOutPath("/")}" target="_top">Sign out</a>`;
+
+  ledger.innerHTML = `
+    <div class="passport-ledger-head"><div><span>AGENT MEMORY</span><h3>SAVED RUN WEEKS</h3></div><strong>${String(savedPlans.length).padStart(2, "0")}</strong></div>
+    <div class="passport-scoreline"><span><b>${savedPlans.length}</b> weeks</span><span><b>${activePasses}</b> active passes</span><span><b>${profile?.weeklyGoalKm ?? 10}</b> km goal</span></div>
+    <div class="saved-week-list">
+      ${savedPlans.length === 0
+        ? `<div class="passport-empty"><span>NO SAVED WEEK</span><p>จัดตารางด้านบน แล้วกด SAVE TO PASSPORT เพื่อเริ่มความจำของ Agent</p></div>`
+        : savedPlans.map((plan, index) => `
+          <article class="saved-week-ticket">
+            <div><span>W${String(savedPlans.length - index).padStart(2, "0")}</span><small>${new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(plan.createdAt))}</small></div>
+            <section><strong>${plan.eventIds.length} RUNS · ${plan.totalDistanceKm} KM</strong><p>${escapeHtml(filterDescription(plan.filters))}</p></section>
+            <button type="button" data-resume-plan="${escapeHtml(plan.id)}">LOAD ↗</button>
+          </article>`).join("")}
+    </div>`;
+
+  document.querySelector<HTMLFormElement>("#passportProfileForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const button = form.querySelector<HTMLButtonElement>("button[type='submit']");
+    const data = new FormData(form);
+    button?.setAttribute("aria-busy", "true");
+    if (button) button.disabled = true;
+    try {
+      const updated = await updateRunnerProfile({
+        displayName: String(data.get("displayName") ?? ""),
+        homeCity: String(data.get("homeCity") || "") || null,
+        preferredPace: (String(data.get("preferredPace") || "") || null) as PaceBand | null,
+        weeklyGoalKm: Number(data.get("weeklyGoalKm")),
+      });
+      if (state.passport) state.passport.profile = updated;
+      if (state.session) state.session.profile = updated;
+      renderPassport();
+      addActivity({ source: "human", title: "Runner Passport updated", detail: `${updated.weeklyGoalKm} KM weekly goal` });
+      showToast("บันทึก Runner Passport แล้ว");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "บันทึก Passport ไม่สำเร็จ", true);
+    } finally {
+      button?.removeAttribute("aria-busy");
+      if (button) button.disabled = false;
+    }
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-resume-plan]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const plan = savedPlans.find((candidate) => candidate.id === button.dataset.resumePlan);
+      if (!plan) return;
+      const input: Record<string, unknown> = {};
+      if (plan.filters.city) input.city = plan.filters.city;
+      if (plan.filters.distanceKm) input.distance_km = plan.filters.distanceKm;
+      if (plan.filters.pace) input.pace = plan.filters.pace;
+      if (plan.filters.socialPreference) input.social_preference = plan.filters.socialPreference;
+      void executeSchedulePlan(input, `“เปิดตารางที่บันทึกไว้: ${filterDescription(plan.filters)}”`);
+      document.querySelector("#runner-agent")?.scrollIntoView({ behavior: "smooth" });
+    });
+  });
+}
+
+async function refreshPassportData(): Promise<PassportData> {
+  const passport = await getRunnerPassport();
+  state.passport = passport;
+  state.session = { authenticated: passport.authenticated, user: passport.user, profile: passport.profile };
+  state.passportStatus = "ready";
+  renderPassport();
+  refreshPasses();
+  return passport;
+}
+
+async function initializePassport() {
+  state.passportStatus = "loading";
+  try {
+    const session = await getRunnerSession();
+    state.session = session;
+    if (!session.authenticated) {
+      state.passport = null;
+      state.passportStatus = "guest";
+      renderPassport();
+      return;
+    }
+    await refreshPassportData();
+    addActivity({ source: "system", title: "Runner memory connected", detail: "Profile, saved weeks, and Run Passes loaded from D1" });
+  } catch (error) {
+    state.passportStatus = "error";
+    renderPassport();
+    console.warn("Runner Passport unavailable", error);
+  }
 }
 
 function syncFilterForm(formId: string, filters: EventFilters) {
@@ -485,6 +700,11 @@ function openRegistration(eventId: string) {
   const content = document.querySelector<HTMLDivElement>("#registrationContent");
   if (!event || !dialog || !content) return;
 
+  const savedName = state.passport?.profile?.displayName ?? state.session?.user?.displayName ?? "";
+  const savedEmail = state.passport?.profile?.email ?? state.session?.user?.email ?? "";
+  const storageConsent = state.session?.authenticated
+    ? "ฉันยินยอมให้บันทึกข้อมูลนี้ใน Runner Passport เพื่อจัดกิจกรรม *"
+    : "ฉันยินยอมให้เก็บข้อมูลนี้ใน browser นี้เพื่อสร้าง Run Pass เดโม *";
   content.innerHTML = `
     <div class="form-heading">
       <p class="dialog-kicker">HUMAN CONFIRMATION FLOW</p>
@@ -494,8 +714,8 @@ function openRegistration(eventId: string) {
     <form id="registrationForm" class="registration-form" novalidate>
       <input type="hidden" name="eventId" value="${event.id}" />
       <div class="form-row">
-        <label><span>ชื่อผู้วิ่ง *</span><input name="runnerName" autocomplete="name" maxlength="80" required /></label>
-        <label><span>อีเมล *</span><input name="email" type="email" autocomplete="email" maxlength="120" required /></label>
+        <label><span>ชื่อผู้วิ่ง *</span><input name="runnerName" autocomplete="name" maxlength="80" value="${escapeHtml(savedName)}" required /></label>
+        <label><span>อีเมล *</span><input name="email" type="email" autocomplete="email" maxlength="120" value="${escapeHtml(savedEmail)}" required /></label>
       </div>
       <label><span>เบอร์ติดต่อฉุกเฉิน *</span><input name="emergencyContact" inputmode="tel" autocomplete="tel" maxlength="40" required /></label>
       <div class="form-row">
@@ -511,7 +731,7 @@ function openRegistration(eventId: string) {
       </fieldset>
       <label class="check age-check" id="ageCheck"><input type="checkbox" name="age20Plus" /><span>ฉันยืนยันว่ามีอายุ 20 ปีขึ้นไปสำหรับตัวเลือกแอลกอฮอล์ และเข้าใจว่าสถานที่จะตรวจบัตร</span></label>
       <label class="check"><input type="checkbox" name="rulesAccepted" required /><span>ฉันอ่านและยอมรับ Club Code รวมถึง RUN FIRST และ NO DRINK & DRIVE *</span></label>
-      <label class="check"><input type="checkbox" name="privacyAccepted" required /><span>ฉันยินยอมให้เก็บข้อมูลนี้ใน browser เพื่อสร้าง run pass เดโม *</span></label>
+      <label class="check"><input type="checkbox" name="privacyAccepted" required /><span>${storageConsent}</span></label>
       <div class="form-errors" id="formErrors" role="alert"></div>
       <button class="button button-dark button-full" type="submit">ตรวจข้อมูลและไปหน้ายืนยัน <span>→</span></button>
       <p class="form-footnote">การกดปุ่มนี้ยังไม่สมัคร ระบบจะเปิดสรุปให้คุณยืนยันอีกครั้ง</p>
@@ -581,16 +801,28 @@ function showPendingConfirmation(input: RegistrationInput) {
     dialog.close();
     openRegistration(input.eventId);
   });
-  content.querySelector<HTMLButtonElement>("#confirmPending")?.addEventListener("click", () => {
+  content.querySelector<HTMLButtonElement>("#confirmPending")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
     try {
-      const registration = confirmPendingRegistration(localStorage);
+      const registration = state.session?.authenticated
+        ? await persistRunPass(input)
+        : confirmPendingRegistration(localStorage);
+      if (state.session?.authenticated) {
+        clearPendingRegistration(localStorage);
+        await refreshPassportData();
+      }
       addActivity({ source: "human", title: "Run pass confirmed", detail: registration.id });
       dialog.close();
       refreshPasses();
-      showToast(`สร้าง ${registration.id} แล้ว`);
+      showToast(state.session?.authenticated ? `บันทึก ${registration.id} ลง Passport แล้ว` : `สร้าง ${registration.id} แล้ว`);
       document.querySelector("#passes")?.scrollIntoView({ behavior: "smooth" });
     } catch (error) {
       showToast(error instanceof Error ? error.message : "ยืนยันไม่สำเร็จ", true);
+    } finally {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
     }
   });
   if (!dialog.open) dialog.showModal();
@@ -600,7 +832,9 @@ function refreshPasses() {
   const list = document.querySelector<HTMLDivElement>("#passesList");
   const count = document.querySelector<HTMLElement>("#passCount");
   if (!list || !count) return;
-  const registrations = readRegistrations(localStorage);
+  const registrations: Array<Registration | PassportRunPass> = state.session?.authenticated
+    ? state.passport?.passes ?? []
+    : readRegistrations(localStorage);
   const active = registrations.filter((registration) => registration.status === "confirmed");
   count.textContent = String(active.length);
 
@@ -619,10 +853,29 @@ function refreshPasses() {
           <p>${event.city.toUpperCase()} / ${event.neighborhood}</p>
           <h3>${event.distanceKm} KM <em>${escapeHtml(event.routeLabel)}</em></h3>
           <div><span>${formatDate(event.date)} · ${event.startTime}</span><span>${PACE_LABELS[registration.pace]}</span><span>${SOCIAL_LABELS[registration.socialPreference]}</span></div>
+          ${registration.status === "confirmed" ? `<button type="button" data-cancel-pass="${escapeHtml(registration.id)}">ยกเลิก Run Pass</button>` : ""}
         </div>
         <div class="pass-code"><span>${escapeHtml(registration.id)}</span><div aria-hidden="true">▌▐▌▌▐▌▐</div></div>
       </article>`;
   }).join("");
+
+  list.querySelectorAll<HTMLButtonElement>("[data-cancel-pass]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const passId = button.dataset.cancelPass ?? "";
+      if (!window.confirm(`ยืนยันยกเลิก ${passId}?`)) return;
+      button.disabled = true;
+      try {
+        await cancelPassForAgent(passId);
+        addActivity({ source: "human", title: "Run pass cancelled", detail: passId });
+        refreshPasses();
+        showToast(`ยกเลิก ${passId} แล้ว`);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "ยกเลิกไม่สำเร็จ", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
 }
 
 function resetFilters() {
@@ -694,6 +947,7 @@ function bindUi() {
   document.querySelectorAll<HTMLButtonElement>("[data-agent-action]").forEach((button) => {
     button.addEventListener("click", () => void runAgentAction(button.dataset.agentAction ?? ""));
   });
+  document.querySelector<HTMLButtonElement>("#saveWeekButton")?.addEventListener("click", () => void saveCurrentWeek());
 }
 
 function setAgentPrompt(message: string) {
@@ -722,6 +976,82 @@ async function executeSchedulePlan(input: Record<string, unknown>, prompt: strin
   } finally {
     submit?.removeAttribute("aria-busy");
     if (submit) submit.disabled = false;
+  }
+}
+
+async function savePlanForAgent(filters: EventFilters, eventIds: string[]) {
+  if (!state.session?.authenticated) {
+    document.querySelector("#passport")?.scrollIntoView({ behavior: "smooth" });
+    throw new Error("Sign in with ChatGPT ก่อนบันทึกตารางลง Runner Passport");
+  }
+  const plan = await persistRunPlan({ filters, eventIds });
+  await refreshPassportData();
+  addActivity({ source: "agent", title: "Agent saved this run week", detail: `${plan.eventIds.length} runs · ${plan.totalDistanceKm} KM` });
+  return plan;
+}
+
+async function readPassportForAgent() {
+  if (!state.session?.authenticated) {
+    throw new Error("Sign in with ChatGPT ก่อนอ่าน Runner Passport");
+  }
+  const passport = await refreshPassportData();
+  return {
+    profile: passport.profile,
+    savedWeeks: passport.savedPlans.map((plan) => ({
+      id: plan.id,
+      filters: plan.filters,
+      eventIds: plan.eventIds,
+      totalDistanceKm: plan.totalDistanceKm,
+      createdAt: plan.createdAt,
+    })),
+    runPassCount: passport.passes.length,
+  };
+}
+
+async function readPassesForAgent() {
+  if (state.session?.authenticated) {
+    return (await refreshPassportData()).passes;
+  }
+  return readRegistrations(localStorage).map((registration) => {
+    const safe = { ...registration } as Partial<Registration>;
+    delete safe.emergencyContact;
+    return safe;
+  });
+}
+
+async function cancelPassForAgent(passId: string) {
+  if (state.session?.authenticated) {
+    const cancelled = await cancelPersistentRunPass(passId);
+    await refreshPassportData();
+    return cancelled;
+  }
+  return cancelRegistration(localStorage, passId);
+}
+
+async function saveCurrentWeek() {
+  if (!state.session?.authenticated) {
+    document.querySelector("#passport")?.scrollIntoView({ behavior: "smooth" });
+    showToast("Sign in with ChatGPT เพื่อให้ Agent จำตารางนี้", true);
+    return;
+  }
+  const harness = window.__RUN_SOCIAL_WEBMCP__;
+  if (!harness) return;
+  const input: Record<string, unknown> = {};
+  if (state.filters.city) input.city = state.filters.city;
+  if (state.filters.distanceKm) input.distance_km = state.filters.distanceKm;
+  if (state.filters.pace) input.pace = state.filters.pace;
+  if (state.filters.socialPreference) input.social_preference = state.filters.socialPreference;
+  const button = document.querySelector<HTMLButtonElement>("#saveWeekButton");
+  button?.setAttribute("aria-busy", "true");
+  if (button) button.disabled = true;
+  try {
+    const result = await harness.execute("save_run_schedule", input) as { event_count?: number };
+    showToast(`บันทึก ${result.event_count ?? 0} runs ลง Passport แล้ว`);
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "บันทึกตารางไม่สำเร็จ", true);
+  } finally {
+    button?.removeAttribute("aria-busy");
+    if (button) button.disabled = false;
   }
 }
 
@@ -773,13 +1103,17 @@ async function initializeWebMcp() {
     showSchedule: renderAgentSchedule,
     showPendingRegistration: showPendingConfirmation,
     refreshPasses,
+    readPassport: readPassportForAgent,
+    saveSchedule: savePlanForAgent,
+    readRunPasses: readPassesForAgent,
+    cancelRunPass: cancelPassForAgent,
     logActivity: addActivity,
   });
   state.webMcpSupported = result.supported;
 
   const status = document.querySelector<HTMLDivElement>("#webMcpStatus");
   const toolCount = document.querySelector<HTMLElement>("#toolCount");
-  if (toolCount) toolCount.textContent = `${result.registered.length || 10} actions`;
+  if (toolCount) toolCount.textContent = `${result.registered.length || 12} actions`;
   if (status) {
     status.classList.toggle("is-live", result.supported);
     status.classList.toggle("is-fallback", !result.supported);
@@ -802,6 +1136,7 @@ renderEvents();
 renderActivity();
 refreshPasses();
 bindUi();
+void initializePassport();
 
 const pending = readPendingRegistration(localStorage);
 if (pending) showPendingConfirmation(pending);

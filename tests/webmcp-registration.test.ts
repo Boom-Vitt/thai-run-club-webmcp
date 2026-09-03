@@ -8,6 +8,10 @@ const bridge: ToolUiBridge = {
   showSchedule: vi.fn(),
   showPendingRegistration: vi.fn(),
   refreshPasses: vi.fn(),
+  readPassport: vi.fn(async () => ({ profile: null, savedWeeks: [], runPassCount: 0 })),
+  saveSchedule: vi.fn(async () => ({ id: "WEEK-test" })),
+  readRunPasses: vi.fn(async () => []),
+  cancelRunPass: vi.fn(async () => ({ status: "cancelled" })),
   logActivity: vi.fn(),
 };
 
@@ -33,8 +37,8 @@ describe("browser WebMCP registration", () => {
     const result = await registerWebMcpTools(localStorage, bridge);
 
     expect(result.supported).toBe(true);
-    expect(result.registered).toHaveLength(10);
-    expect(registerTool).toHaveBeenCalledTimes(10);
+    expect(result.registered).toHaveLength(12);
+    expect(registerTool).toHaveBeenCalledTimes(12);
     expect(registered.map((tool) => tool.name)).toContain("prepare_run_registration");
 
     const discovery = await window.__RUN_SOCIAL_WEBMCP__?.execute("discover_run_events", {
@@ -52,7 +56,7 @@ describe("browser WebMCP registration", () => {
 
     const result = await registerWebMcpTools(localStorage, bridge);
     expect(result.supported).toBe(false);
-    expect(result.registered).toHaveLength(10);
+    expect(result.registered).toHaveLength(12);
     expect(window.__RUN_SOCIAL_WEBMCP__).toBeDefined();
   });
 });

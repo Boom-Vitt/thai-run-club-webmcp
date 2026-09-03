@@ -1,3 +1,5 @@
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { sites } from "@openai/sites-vite-plugin";
 import { defineConfig } from "vite";
 
 const webMcpHeaders = {
@@ -5,7 +7,8 @@ const webMcpHeaders = {
   "Permissions-Policy": "tools=(self)",
 };
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  plugins: mode === "test" ? [] : [sites(), cloudflare({ viteEnvironment: { name: "server" } })],
   server: {
     host: "127.0.0.1",
     port: 5187,
@@ -22,4 +25,4 @@ export default defineConfig({
     target: "es2023",
     sourcemap: true,
   },
-});
+}));

@@ -1,13 +1,11 @@
 import { EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
 import {
-  cancelRegistration,
   checkReadiness,
   compareEvents,
   discoverEvents,
   findEvent,
   getRules,
   planRunSchedule,
-  readRegistrations,
   safeReturnOptions,
   stageRegistration,
 } from "./domain";
@@ -41,6 +39,10 @@ export interface ToolUiBridge {
   showSchedule: (filters: EventFilters) => void;
   showPendingRegistration: (input: RegistrationInput) => void;
   refreshPasses: () => void;
+  readPassport: () => Promise<unknown>;
+  saveSchedule: (filters: EventFilters, eventIds: string[]) => Promise<unknown>;
+  readRunPasses: () => Promise<unknown[]>;
+  cancelRunPass: (passId: string) => Promise<{ status: string }>;
   logActivity: (entry: Omit<ActivityEntry, "id" | "time">) => void;
 }
 
@@ -123,6 +125,20 @@ function activity(bridge: ToolUiBridge, title: string, detail: string) {
   bridge.logActivity({ source: "agent", title, detail });
 }
 
+function scheduleFilters(input: Record<string, unknown>): EventFilters {
+  return {
+    city: optionalEnumValue(input.city, "city", CITIES) as City | undefined,
+    distanceKm: optionalDistanceValue(input.distance_km),
+    pace: optionalEnumValue(input.pace, "pace", PACES) as PaceBand | undefined,
+    socialPreference: optionalEnumValue(
+      input.social_preference,
+      "social_preference",
+      SOCIAL_OPTIONS,
+    ) as SocialOption | undefined,
+    alcoholFreeRequired: optionalBooleanValue(input.alcohol_free_required, "alcohol_free_required"),
+  };
+}
+
 export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): WebMcpTool[] {
   return [
     {
@@ -144,17 +160,7 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
         assertActive(options);
-        const filters: EventFilters = {
-          city: optionalEnumValue(input.city, "city", CITIES) as City | undefined,
-          distanceKm: optionalDistanceValue(input.distance_km),
-          pace: optionalEnumValue(input.pace, "pace", PACES) as PaceBand | undefined,
-          socialPreference: optionalEnumValue(
-            input.social_preference,
-            "social_preference",
-            SOCIAL_OPTIONS,
-          ) as SocialOption | undefined,
-          alcoholFreeRequired: optionalBooleanValue(input.alcohol_free_required, "alcohol_free_required"),
-        };
+        const filters = scheduleFilters(input);
         const plan = planRunSchedule(filters);
         bridge.showSchedule(filters);
         activity(
@@ -181,6 +187,53 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
             ? "Open, compare, or check the next event."
             : "Relax a filter and plan again.",
         };
+      },
+    },
+    {
+      name: "save_run_schedule",
+      title: "Save my run schedule",
+      description:
+        "Build the requested schedule and persist that exact week to the signed-in runner's D1-backed Runner Passport. Use only when the runner asks to remember or save a plan.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          city: citySchema,
+          distance_km: { type: "number", enum: DISTANCES },
+          pace: paceSchema,
+          social_preference: socialSchema,
+          alcohol_free_required: { type: "boolean", default: false },
+        },
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: false, untrustedContentHint: false },
+      execute: async (input, options) => {
+        assertActive(options);
+        const filters = scheduleFilters(input);
+        const plan = planRunSchedule(filters);
+        if (plan.events.length === 0) throw new Error("No matching runs to save");
+        bridge.showSchedule(filters);
+        const saved = await bridge.saveSchedule(filters, plan.events.map((event) => event.id));
+        activity(bridge, "Agent saved a run week", `${plan.count} runs · ${plan.totalDistanceKm} km persisted`);
+        return {
+          saved: true,
+          event_count: plan.count,
+          total_distance_km: plan.totalDistanceKm,
+          saved_plan: saved,
+        };
+      },
+    },
+    {
+      name: "get_runner_passport",
+      title: "Read my Runner Passport",
+      description:
+        "Read the signed-in runner's profile, saved run weeks, and Run Pass count from persistent storage. Use this to continue planning from remembered goals without guessing preferences.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: async (_input, options) => {
+        assertActive(options);
+        const passport = await bridge.readPassport();
+        activity(bridge, "Agent read Runner Passport", "Persistent profile and saved weeks loaded");
+        return passport;
       },
     },
     {
@@ -453,13 +506,13 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
       name: "get_my_run_passes",
       title: "Get my run passes",
       description:
-        "List run passes stored in this browser for the current user, with emergency-contact details redacted from the result.",
+        "List Run Passes from the signed-in Runner Passport, or from this browser in guest mode. Emergency-contact details are always redacted from the result.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: async (_input, options) => {
         assertActive(options);
-        const registrations = readRegistrations(storage).map(({ emergencyContact: _private, ...safe }) => safe);
-        activity(bridge, "Agent checked run passes", `${registrations.length} passes found in this browser`);
+        const registrations = await bridge.readRunPasses();
+        activity(bridge, "Agent checked run passes", `${registrations.length} passes found`);
         return { count: registrations.length, passes: registrations };
       },
     },
@@ -485,7 +538,7 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
         if (!confirmed) {
           return { status: "confirmation_required", pass_id: passId, changed: false };
         }
-        const cancelled = cancelRegistration(storage, passId);
+        const cancelled = await bridge.cancelRunPass(passId);
         bridge.refreshPasses();
         activity(bridge, "Agent cancelled a run pass", passId);
         return { status: cancelled.status, pass_id: passId, changed: true };

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("Runner Agent working surface", () => {
   beforeEach(() => {
@@ -11,6 +11,14 @@ describe("Runner Agent working surface", () => {
       configurable: true,
       value: undefined,
     });
+  });
+
+  afterEach(() => {
+    window.__RUN_SOCIAL_WEBMCP_CONTROLLER__?.abort();
+    window.__RUN_SOCIAL_WEBMCP_CONTROLLER__ = undefined;
+    window.__RUN_SOCIAL_WEBMCP__ = undefined;
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("plans and renders a no-login Bangkok run schedule through the tool execution path", async () => {
@@ -33,5 +41,48 @@ describe("Runner Agent working surface", () => {
     expect(document.querySelectorAll(".agent-schedule-row")).toHaveLength(1);
     expect(document.querySelectorAll("#eventGrid .event-card")).toHaveLength(1);
     expect(document.querySelector("#agentPromptText")?.textContent).toContain("Bangkok");
+  });
+
+  it("loads a signed-in D1-backed Runner Passport and saved week", async () => {
+    const session = {
+      authenticated: true,
+      user: { displayName: "Seedy Runner", email: "seedy@sites.test" },
+      profile: {
+        displayName: "Seedy Runner",
+        email: "seedy@sites.test",
+        homeCity: "Bangkok",
+        preferredPace: "social",
+        weeklyGoalKm: 15,
+        updatedAt: "2026-09-03T07:00:00.000Z",
+      },
+    };
+    const passport = {
+      ...session,
+      savedPlans: [{
+        id: "WEEK-test",
+        filters: { city: "Bangkok", pace: "social" },
+        eventIds: ["bkk-riverside-5", "bkk-green-3"],
+        totalDistanceKm: 8,
+        createdAt: "2026-09-03T07:00:00.000Z",
+      }],
+      passes: [],
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      const data = url.endsWith("/api/passport") ? passport : session;
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }));
+
+    await import("../src/main");
+
+    await vi.waitFor(() => {
+      expect(document.querySelector("#agentIdentityMode")?.textContent).toBe("MEMORY ON");
+    });
+    expect(document.querySelector("#headerAccount")?.textContent).toBe("SR");
+    expect(document.querySelector("#passportCard")?.textContent).toContain("15 KM");
+    expect(document.querySelectorAll(".saved-week-ticket")).toHaveLength(1);
   });
 });
