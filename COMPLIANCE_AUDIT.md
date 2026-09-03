@@ -8,13 +8,13 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 
 | Requirement | Status | Evidence | Remaining work |
 | --- | --- | --- | --- |
-| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers ten imperative tools; 23 automated tests pass; mocked browser integration verifies all ten `registerTool()` calls; the no-login Runner Agent Week Board executes the same schedule tool path | Enable WebMCP in a supported controlled browser and capture live tool discovery/execution evidence |
-| Meaningful WebMCP leverage | PASS (code) | Discovery, comparison, details, rules, readiness, safe return, staged registration, pass lookup, and cancellation use bounded schemas and shared domain logic | Live browser evidence still required for submission proof |
-| Complete human product experience | PASS | Chrome browser smoke test completed filter → details → under-age block → staged confirmation → confirmed run pass on production build with no console errors | Add remote production URL for judges |
+| WebMCP-powered web app | PARTIAL | `src/webmcp.ts` registers thirteen imperative tools; 34 automated tests pass; mocked browser integration verifies all thirteen `registerTool()` calls; the no-login Week Board and Runner Commons Loop execute the same tool paths | Enable WebMCP in a supported controlled browser and capture live tool discovery/execution evidence |
+| Meaningful WebMCP leverage | PASS (code) | Scheduling, persistent memory, circular support, discovery, comparison, details, rules, readiness, safe return, staged registration, pass lookup, and cancellation use bounded schemas and shared domain logic | Live browser evidence still required for submission proof |
+| Complete human product experience | PASS | Public Chrome smoke tests covered natural-language planning and the production API; prior flow evidence covers details, under-age block, staged confirmation, and confirmed Run Pass behavior | Capture native WebMCP evidence after enabling the Chrome flag |
 | Human/agent shared context | PASS (code) | `get_run_event_details` opens the visible drawer; `prepare_run_registration` opens the confirmation UI; activity log records agent actions | Capture these actions from a real WebMCP client |
 | Consequential-action control | PASS | Registration can only be staged by tool; finalization requires the visible human button; cancellation requires `confirmed: true` |
-| Potential impact | PASS (concept) | Specific Thai social-running audience and end-to-end event coordination problem are stated in UI, README, and build plan | Validate with real organizers/runners after hackathon |
-| Creativity and ambition | PASS (concept) | One request coordinates discovery, rules, readiness, confirmation, privacy, and safe return rather than exposing a single novelty tool | Demonstrate clearly in video |
+| Potential impact | PASS (concept) | The Thai running use case now combines coordination with lower-cost, lower-waste bring/borrow/refill/repair support and club reciprocity | Validate with real organizers/runners after hackathon |
+| Creativity and ambition | PASS (concept) | One request coordinates discovery, persistent memory, circular support, rules, readiness, confirmation, privacy, and safe return rather than exposing a novelty storefront | Demonstrate clearly in video |
 | Responsive, accessible UI | PARTIAL | Semantic DOM snapshot shows headings, regions, labelled form controls, buttons, dialogs, and live status; CSS contains mobile and reduced-motion breakpoints | Browser viewport override did not apply in the connected extension; capture mobile evidence later |
 
 ## Safety and Thailand alcohol guardrails
@@ -28,18 +28,18 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 | Refuse intoxicated service and licensed venue only | PASS (policy) | Visible rules and policy document; real venue enforcement remains organizer responsibility |
 | No drink and drive | PASS | Safe-return tool has no self-drive option and returns an explicit warning; execution and domain tests reject `drive` even when a client bypasses JSON Schema |
 | No medical diagnosis | PASS | Rule-based readiness output includes explicit disclaimer and blocks concerning symptoms |
-| Privacy minimization | PASS | Demo data is browser-local; emergency contact is omitted from `get_my_run_passes`; automated redaction test passes |
+| Privacy minimization | PASS | Guest passes remain browser-local; signed-in data is owner-scoped in D1; emergency contact is omitted from `get_my_run_passes`; automated redaction and authorization tests pass |
 
 ## Required submission package
 
 | Deliverable | Status | Evidence / blocker |
 | --- | --- | --- |
-| Working hosted URL | PARTIAL | An owner-only Sites production deployment exists at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site`; it is not yet accessible to judges | Obtain participant approval to make the Site public, then run a logged-out/fresh-session judge test |
+| Working hosted URL | PASS | The public Site at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site` serves the UI and Worker API; Sites reports public access and the expected D1 binding/tables | Keep available through judging and recheck after the final deployment |
 | Public repository | OPEN | Source and `.gitignore` are ready; repository has not been published |
 | Open-source license | PASS (file) | MIT `LICENSE` exists; public landing-page visibility cannot be verified until publishing |
 | Complete source and run instructions | PASS | `README.md`, lockfile, scripts, architecture, local URL, and test command |
 | Public YouTube demo under 3 minutes with audio | OPEN | `DEMO_SCRIPT.md` is ready; video is not recorded or published |
-| English submission materials | PARTIAL | README and demo narration are English; Devpost project description is not prepared because the official rules acknowledgment gate is still locked |
+| English submission materials | PARTIAL | README, demo narration, partner roadmap, and Devpost project-description draft are English | Participant fields, final name, and evidence links remain open |
 | Team accepted | OPEN / N/A | Submitter/team structure has not been chosen |
 | Submitted, not draft | OPEN | Nothing has been submitted to Devpost |
 | Freeze after deadline | PASS (guardrail) | `AGENTS.md` instructs all future agents to stop mutations to submitted artifacts after 2026-09-04 03:00 Asia/Bangkok |
@@ -49,19 +49,18 @@ Statuses: **PASS** = direct evidence exists; **PARTIAL** = implementation exists
 - Node.js: v22.23.2.
 - Chrome: 152.0.7977.65.
 - Production build: Vite 8.2.2, successful.
-- Automated verification: 4 test files, 23 tests, all passed, including the no-login schedule UI and the recommended 1.5K-character output budget for representative tool calls.
+- Automated verification: 5 test files, 34 tests, all passed, including natural-language planning, Runner Commons UI, all thirteen tool contracts, D1 APIs, and the recommended 1.5K-character output budget for representative tool calls.
 - Security audit: npm reported 0 known vulnerabilities at install time.
 - Server: Node process bound only to `127.0.0.1:5187` with `--strictPort`; a deliberate second-instance test exited nonzero with `Port 5187 is already in use` instead of selecting another port.
 - Headers: HTTP 200, `Origin-Agent-Cluster: ?1`, `Permissions-Policy: tools=(self)`.
-- Browser smoke test: passed with no console warnings or errors.
-- Local source checkpoint: Git commit `42245a3` on 2026-09-02 Asia/Bangkok; private Devpost workflow state is excluded by `.gitignore`.
-- Connected Chrome did not expose `document.modelContext`; its WebMCP testing flag still needs to be enabled manually. The in-app browser was unavailable in this environment.
-- Sites production deployment: version 1 succeeded at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site` with owner-only access. This is deployment evidence, not a compliant public judge URL.
+- Public browser smoke test: natural-language Bangkok 5K planning returned one matching run; the public Worker session endpoint returned JSON.
+- Connected Chrome still does not expose `document.modelContext`; the WebMCP testing flag must be enabled manually and Chrome relaunched before native evidence can pass.
+- Sites production deployment is public at `https://thai-run-club-webmcp.humble-flea-4717.chatgpt.site`, with Worker routing and the `DB` binding active.
 
 ## Immediate gates before completion
 
 1. Participant replies exact `yes` to the official Devpost rules gate.
 2. Enable WebMCP testing in Chrome 149+ or provide ChatGPT's in-app browser, then verify live discovery and execution.
 3. Choose the final project name.
-4. Approve public Site access, verify the URL in a fresh session, and publish the source repository.
+4. Publish the source repository and verify logged-out visibility plus MIT license detection.
 5. Record/publish the demo and complete Devpost submission before the deadline.

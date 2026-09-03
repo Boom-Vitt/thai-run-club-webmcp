@@ -57,6 +57,21 @@ describe("Runner Agent working surface", () => {
     expect(document.querySelector("#agentPlanSummary")?.textContent).toContain("Alcohol-free");
   });
 
+  it("turns a preparation question into a visible Runner Commons loop", async () => {
+    await import("../src/main");
+    const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;
+    const request = form.elements.namedItem("request") as HTMLTextAreaElement;
+    request.value = "อยากวิ่ง 5 กม. ในกรุงเทพ งานนี้ต้องเตรียมอะไร ยืมหรือเติมก่อนซื้อได้ไหม";
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelector<HTMLElement>("#runnerSupportLoop")?.hidden).toBe(false);
+    });
+    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("RUNNER COMMONS");
+    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("ยืมในคลับ");
+    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("หยุดก่อน cart หรือ checkout");
+  });
+
   it("loads a signed-in D1-backed Runner Passport and saved week", async () => {
     const session = {
       authenticated: true,

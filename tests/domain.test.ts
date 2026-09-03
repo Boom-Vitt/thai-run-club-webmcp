@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRunnerSupportLoop,
   checkReadiness,
   confirmPendingRegistration,
   discoverEvents,
@@ -50,6 +51,18 @@ describe("runner schedule", () => {
       "bkk-riverside-5",
       "bkk-green-3",
     ]);
+  });
+});
+
+describe("Runner Commons support loop", () => {
+  it("prioritizes circular support and keeps merchant search human-controlled", () => {
+    const loop = buildRunnerSupportLoop("bkk-riverside-5");
+
+    expect(loop.steps.map((step) => step.mode)).toEqual(["bring", "borrow", "refill", "repair"]);
+    expect(loop.steps.find((step) => step.mode === "refill")?.action).toContain("จุดน้ำ");
+    expect(loop.unresolvedNeeds).toContain("ไฟหรือแถบสะท้อนแสง");
+    expect(loop.merchantHandoff).toMatchObject({ status: "not_connected", humanConfirmationRequired: true });
+    expect(loop.merchantHandoff.rule).toContain("หยุดก่อน cart หรือ checkout");
   });
 });
 

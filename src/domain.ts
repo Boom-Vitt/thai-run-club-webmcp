@@ -25,6 +25,26 @@ export interface ValidationResult {
   errors: string[];
 }
 
+export interface RunnerSupportStep {
+  mode: "bring" | "borrow" | "refill" | "repair";
+  title: string;
+  action: string;
+  reason: string;
+}
+
+export interface RunnerSupportLoop {
+  eventId: string;
+  eventLabel: string;
+  steps: RunnerSupportStep[];
+  giveBack: string;
+  unresolvedNeeds: string[];
+  merchantHandoff: {
+    status: "not_connected";
+    rule: string;
+    humanConfirmationRequired: true;
+  };
+}
+
 const SAFE_TRANSPORT_MODES: readonly TransportMode[] = ["transit", "taxi", "walk", "sober_driver"];
 
 export function findEvent(eventId: string): RunEvent | undefined {
@@ -292,5 +312,64 @@ export function safeReturnOptions(eventId: string, socialPreference?: SocialOpti
       socialPreference === "beer_optional"
         ? "ห้ามขับรถหลังดื่ม เลือกขนส่งสาธารณะ แท็กซี่ เดิน หรือคนขับที่ไม่ดื่ม"
         : "วางแผนทางกลับก่อนออกวิ่งและเดินทางเป็นกลุ่มเมื่อทำได้",
+  };
+}
+
+export function buildRunnerSupportLoop(eventId: string): RunnerSupportLoop {
+  const event = findEvent(eventId);
+  if (!event) throw new Error("ไม่พบอีเวนต์");
+
+  const hasRefill = event.accessibility.some((item) => item.includes("เติมน้ำ"));
+  const isAfterDarkRisk = event.startTime >= "17:15";
+  const welcomesNewRunners = event.accessibility.some((item) =>
+    item.includes("นักวิ่งใหม่") || item.includes("ครั้งแรก"),
+  );
+  const unresolvedNeeds = [
+    ...(isAfterDarkRisk ? ["ไฟหรือแถบสะท้อนแสง"] : []),
+    ...(!hasRefill || event.distanceKm >= 7 ? ["ภาชนะน้ำพกพา"] : []),
+  ];
+
+  return {
+    eventId: event.id,
+    eventLabel: `${event.city} · ${event.neighborhood} · ${event.distanceKm} KM`,
+    steps: [
+      {
+        mode: "bring",
+        title: "เอาของที่มีไปก่อน",
+        action: "โทรศัพท์ บัตรโดยสาร ภาชนะน้ำใช้ซ้ำ และอุปกรณ์วิ่งที่คุ้นเคย",
+        reason: "ลดของใหม่และลดความเสี่ยงจากอุปกรณ์ที่ยังไม่เคยลอง",
+      },
+      {
+        mode: "borrow",
+        title: "ยืมในคลับ",
+        action: isAfterDarkRisk
+          ? "ขอยืมไฟหรือแถบสะท้อนแสงจาก Runner Commons"
+          : "แชร์อุปกรณ์สำรองกับเพื่อนวิ่งก่อนหาของใหม่",
+        reason: "ใช้ของร่วมกันสำหรับสิ่งที่ต้องใช้เป็นครั้งคราว",
+      },
+      {
+        mode: "refill",
+        title: "เติมแทนซื้อซ้ำ",
+        action: hasRefill
+          ? "นำขวดใช้ซ้ำและเติมที่จุดน้ำของงาน"
+          : "เติมน้ำก่อนออกวิ่งและยืนยันจุดเติมกับผู้จัด",
+        reason: hasRefill ? "งานระบุว่ามีจุดเติมน้ำ" : "ข้อมูลจุดเติมยังต้องยืนยัน",
+      },
+      {
+        mode: "repair",
+        title: "เช็กและซ่อม",
+        action: "เช็กพื้นรองเท้า เชือก และอุปกรณ์สะท้อนแสง; ซ่อมหรือเปลี่ยนชิ้นส่วนย่อยก่อนซื้อใหม่",
+        reason: "ยืดอายุของที่มีโดยไม่ให้ Agent วินิจฉัยความเหมาะสมทางการแพทย์",
+      },
+    ],
+    giveBack: welcomesNewRunners
+      ? "อาสาวิ่งคู่กับนักวิ่งใหม่ หรือช่วยชี้จุดเติมน้ำและทางกลับ"
+      : "ส่งบันทึกจุดเสี่ยงและข้อมูลเดินทางกลับให้ผู้จัดตรวจ ก่อนอัปเดตงาน",
+    unresolvedNeeds,
+    merchantHandoff: {
+      status: "not_connected",
+      rule: "ค้นหาแค็ตตาล็อกเฉพาะเมื่อผู้วิ่งขอและยังมีของที่ขาด จากนั้นหยุดก่อน cart หรือ checkout เพื่อให้คนตรวจเอง",
+      humanConfirmationRequired: true,
+    },
   };
 }

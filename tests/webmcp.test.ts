@@ -8,6 +8,7 @@ function setup() {
   const bridge: ToolUiBridge = {
     selectEvent: vi.fn(),
     showSchedule: vi.fn(),
+    showSupportLoop: vi.fn(),
     showPendingRegistration: vi.fn(),
     refreshPasses: vi.fn(),
     readPassport: vi.fn(async () => ({ profile: null, savedWeeks: [], runPassCount: 0 })),
@@ -24,12 +25,12 @@ function setup() {
 }
 
 describe("WebMCP tool contract", () => {
-  it("exposes twelve unique, valid tool names and serializable schemas", () => {
+  it("exposes thirteen unique, valid tool names and serializable schemas", () => {
     const { tools } = setup();
     const names = tools.map((tool) => tool.name);
 
-    expect(tools).toHaveLength(12);
-    expect(new Set(names).size).toBe(12);
+    expect(tools).toHaveLength(13);
+    expect(new Set(names).size).toBe(13);
     for (const tool of tools) {
       expect(tool.name).toMatch(/^[A-Za-z0-9_.-]{1,128}$/);
       expect(tool.name.length).toBeLessThanOrEqual(30);
@@ -74,6 +75,19 @@ describe("WebMCP tool contract", () => {
       { city: "Bangkok", pace: "social" },
       ["bkk-riverside-5", "bkk-green-3"],
     );
+  });
+
+  it("builds a visible shop-last Runner Commons loop", async () => {
+    const { tools, bridge } = setup();
+    const tool = tools.find((candidate) => candidate.name === "build_runner_support_loop")!;
+    const result = await tool.execute({ event_id: "bkk-riverside-5" });
+
+    expect(result).toMatchObject({
+      event_id: "bkk-riverside-5",
+      merchant_handoff: { status: "not_connected", humanConfirmationRequired: true },
+    });
+    expect(bridge.showSupportLoop).toHaveBeenCalledOnce();
+    expect(tool.annotations.readOnlyHint).toBe(false);
   });
 
   it("prepares registration without finalizing it and requests visible human review", async () => {
@@ -170,6 +184,7 @@ describe("WebMCP tool contract", () => {
       ["plan_run_schedule", {}],
       ["save_run_schedule", { city: "Bangkok", pace: "social" }],
       ["get_runner_passport", {}],
+      ["build_runner_support_loop", { event_id: "bkk-riverside-5" }],
       ["discover_run_events", { city: "Bangkok", distance_km: 5 }],
       ["compare_run_events", { event_ids: ["bkk-riverside-5", "bkk-oldtown-7"] }],
       ["get_run_event_details", { event_id: "bkk-riverside-5" }],

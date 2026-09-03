@@ -35,4 +35,8 @@ describe("natural runner requests", () => {
     expect(interpretRunnerRequest("ช่วยจำตารางนี้ไว้ให้หน่อย").action).toBe("save_plan");
     expect(interpretRunnerRequest("เปิดแผนที่บันทึกไว้ใน Passport").action).toBe("show_passport");
   });
+
+  it("recognizes a circular preparation request", () => {
+    expect(interpretRunnerRequest("งานนี้ต้องเตรียมอะไร ยืมหรือเติมก่อนซื้อได้ไหม").action).toBe("support_loop");
+  });
 });

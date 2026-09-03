@@ -60,11 +60,11 @@ Narration:
 
 ## 2:14–2:25 — Why WebMCP
 
-Visual: Fast montage of the twelve Runner Agent actions, mobile layout, and tests passing.
+Visual: Fast montage of the thirteen Runner Agent actions, including the Runner Commons Loop, mobile layout, and tests passing.
 
 Narration:
 
-> Twelve WebMCP actions let this Runner Agent scout, sort, remember, check, and hand off a complete run plan. WebMCP is how the agent executes these product actions; the value is the work it completes for the runner.
+> Thirteen WebMCP actions let this Runner Agent scout, sort, remember, check, build a bring-borrow-refill-repair support loop, and hand off a complete run plan. WebMCP is how the agent executes these product actions; the value is the work it completes for the runner.
 
 ## Recording checklist
 

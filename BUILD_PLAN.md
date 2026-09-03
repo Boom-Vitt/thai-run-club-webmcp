@@ -134,7 +134,7 @@ WebMCP is progressive enhancement: the human UI remains fully usable when `docum
 ## 8. Acceptance criteria
 
 - [x] Human UI supports discovery, details, rules, readiness, registration, pass, and return plan.
-- [x] Twelve meaningful WebMCP tools register with bounded JSON Schemas.
+- [x] Thirteen meaningful WebMCP tools register with bounded JSON Schemas.
 - [x] Read-only tools are annotated correctly and return structured results.
 - [x] Consequential registration requires a visible, explicit human confirmation.
 - [x] WebMCP tool execution updates the same state and UI used by humans.

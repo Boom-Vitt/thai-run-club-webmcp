@@ -13,6 +13,7 @@ import {
   safeReturnOptions,
   stageRegistration,
 } from "./domain";
+import type { RunnerSupportLoop } from "./domain";
 import type {
   ActivityEntry,
   City,
@@ -146,7 +147,7 @@ function renderShell() {
           </div>
           <div class="hero-proof" aria-label="ข้อมูลสำคัญ">
             <span><strong>${EVENTS.length}</strong> runs in schedule</span>
-            <span><strong>12</strong> agent actions</span>
+            <span><strong>13</strong> agent actions</span>
             <span><strong>D1</strong> runner memory</span>
             <span><strong>1</strong> human final call</span>
           </div>
@@ -180,9 +181,11 @@ function renderShell() {
             <button type="button" data-runner-request="อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม">“อยากวิ่งชิล ๆ 5 กม.”</button>
             <button type="button" data-runner-request="ช่วยเทียบงานสาย social ที่มีทางกลับสะดวก">“ช่วยเทียบงานสาย social”</button>
             <button type="button" data-runner-request="เปิดงานวิ่งในกรุงเทพแล้วช่วยวางทางกลับบ้าน">“ช่วยวางทางกลับบ้าน”</button>
+            <button type="button" data-runner-request="งานนี้ต้องเตรียมอะไร ยืม เติม หรือซ่อมก่อนซื้อได้ไหม">“งานนี้ต้องเตรียมอะไร?”</button>
           </div>
           <div class="agent-plan-summary" id="agentPlanSummary" role="status" aria-live="polite"></div>
           <div class="agent-schedule-board" id="agentScheduleBoard"></div>
+          <aside class="support-loop" id="runnerSupportLoop" aria-live="polite" hidden></aside>
           <div class="agent-save-bar">
             <p id="saveWeekHint">จัดตารางได้ทันที · Sign in เมื่อต้องการให้ Agent จำ</p>
             <button id="saveWeekButton" type="button">SAVE TO PASSPORT <span>↗</span></button>
@@ -281,7 +284,7 @@ function renderShell() {
             </div>
           </div>
           <div class="agent-console" aria-label="WebMCP activity">
-            <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">12 actions</small></div>
+            <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">13 actions</small></div>
             <div class="console-prompt">
               <span>YOU</span>
               <p id="agentPromptText">“เปิดตารางวิ่งทั้งหมด แล้วช่วยจัดลำดับสิ่งที่ฉันทำต่อได้”</p>
@@ -601,6 +604,20 @@ function renderAgentSchedule(filters: EventFilters) {
   board.querySelectorAll<HTMLButtonElement>("[data-agent-action]").forEach((button) => {
     button.addEventListener("click", () => void runAgentAction(button.dataset.agentAction ?? ""));
   });
+}
+
+function renderRunnerSupportLoop(loop: RunnerSupportLoop) {
+  const panel = document.querySelector<HTMLElement>("#runnerSupportLoop");
+  if (!panel) return;
+  panel.hidden = false;
+  panel.innerHTML = `
+    <div class="support-loop-head"><div><span>RUNNER COMMONS / SHOP LAST</span><strong>${escapeHtml(loop.eventLabel)}</strong></div><b>↺</b></div>
+    <div class="support-loop-grid">
+      ${loop.steps.map((step, index) => `
+        <article><small>0${index + 1} / ${step.mode.toUpperCase()}</small><strong>${escapeHtml(step.title)}</strong><p>${escapeHtml(step.action)}</p><em>${escapeHtml(step.reason)}</em></article>`).join("")}
+    </div>
+    <div class="support-loop-giveback"><span>GIVE BACK</span><p>${escapeHtml(loop.giveBack)}</p></div>
+    <div class="support-loop-handoff"><span>NEXT CONNECTOR / HUMAN FIRST</span><p>${escapeHtml(loop.merchantHandoff.rule)}</p></div>`;
 }
 
 function renderEvents() {
@@ -1045,6 +1062,9 @@ async function runNaturalAgentRequest(request: string, fallback: EventFilters = 
       }
       await harness.execute("compare_run_events", { event_ids: eventIds });
       showToast(`Runner Agent เทียบ ${eventIds.length} ตัวเลือกแล้ว`);
+    } else if (intent.action === "support_loop" && first) {
+      await harness.execute("build_runner_support_loop", { event_id: first.id });
+      showToast("Runner Commons Loop พร้อมแล้ว");
     } else if (intent.action === "safe_return" && first) {
       const safeReturn = await harness.execute("get_safe_return_options", {
         event_id: first.id,
@@ -1181,6 +1201,7 @@ async function initializeWebMcp() {
   const result = await registerWebMcpTools(localStorage, {
     selectEvent: (eventId) => openEvent(eventId, "agent"),
     showSchedule: renderAgentSchedule,
+    showSupportLoop: renderRunnerSupportLoop,
     showPendingRegistration: showPendingConfirmation,
     refreshPasses,
     readPassport: readPassportForAgent,
@@ -1193,7 +1214,7 @@ async function initializeWebMcp() {
 
   const status = document.querySelector<HTMLDivElement>("#webMcpStatus");
   const toolCount = document.querySelector<HTMLElement>("#toolCount");
-  if (toolCount) toolCount.textContent = `${result.registered.length || 12} actions`;
+  if (toolCount) toolCount.textContent = `${result.registered.length || 13} actions`;
   if (status) {
     status.classList.toggle("is-live", result.supported);
     status.classList.toggle("is-fallback", !result.supported);

@@ -4,7 +4,7 @@
 
 A Thai-first Runner Agent that turns a runner's preferences into an actionable run schedule. It can shortlist and compare events, open the chosen run, check participation readiness, plan the journey home, and prepare a Run Pass for visible human confirmation—without requiring an account. Optional ChatGPT sign-in unlocks a D1-backed Runner Passport that remembers the runner's profile, saved weeks, and confirmed passes across visits.
 
-The Runner Agent week board and twelve WebMCP actions share the same domain logic, visible state, and persistence APIs. People can use the planner directly in any browser; compatible browsers can let an external agent drive the same actions through `document.modelContext.registerTool()`.
+The Runner Agent week board and thirteen WebMCP actions share the same domain logic, visible state, and persistence APIs. People can use the planner directly in any browser; compatible browsers can let an external agent drive the same actions through `document.modelContext.registerTool()`.
 
 ## Why this fits WebMCP
 
@@ -19,6 +19,7 @@ The Runner Agent completes a concrete sequence for the runner:
 7. Prepare a registration, stop, and hand the final confirmation to the runner.
 8. Save the exact week to a signed-in Runner Passport and continue from remembered goals later.
 9. Read browser-local guest passes or persistent signed-in passes with emergency-contact data redacted.
+10. Build a Runner Commons Loop that prioritizes bring, borrow, refill, repair, and give-back before any optional merchant search.
 
 This demonstrates the WebMCP goal of a shared, user-controlled human-and-agent workflow rather than a prompt wrapper.
 
@@ -53,6 +54,7 @@ After enabling native WebMCP, run the five live-agent scenarios in [WEBMCP_LIVE_
 | `plan_run_schedule` | Build and display a chronological week board from runner preferences | Updates the same visible schedule used by the human interface |
 | `save_run_schedule` | Persist the exact matching week to D1 | Requires ChatGPT sign-in and updates the visible Passport |
 | `get_runner_passport` | Read profile, remembered weeks, and pass count | Returns only the current signed-in runner's records |
+| `build_runner_support_loop` | Build a circular preparation and community-support plan for one run | Shows the same loop in the UI; never creates a cart or checkout |
 | `discover_run_events` | Search by city, distance, pace, date, and social preference | Updates activity log |
 | `compare_run_events` | Compare 2–3 events | Read-only |
 | `get_run_event_details` | Return details and open the same event in the UI | Visible shared state |
@@ -64,6 +66,16 @@ After enabling native WebMCP, run the five live-agent scenarios in [WEBMCP_LIVE_
 | `cancel_run_registration` | Cancel a pass | Requires an explicit `confirmed: true` input |
 
 All tools use bounded JSON Schemas with `additionalProperties: false`. Read-only tools declare `readOnlyHint: true`; state-changing tools declare `readOnlyHint: false` and treat echoed user content as untrusted.
+
+## Partner-ready next generation
+
+The current demo does not connect any external store or hosting account. Its new Runner Commons Loop creates a useful, provider-neutral handoff point:
+
+- Shopify Storefront MCP or UCP can later search only for a runner-confirmed remaining need and stop for human checkout review.
+- Netlify Agent Runners and staging environments can later turn organizer corrections into reviewable route-update previews.
+- Render workflows, workers, cron jobs, and MCP operations can later run route audits and stale-event checks outside the visitor request path.
+
+The full capability map, confirmation boundaries, and official references are in [PARTNER_INTEGRATION_ROADMAP.md](./PARTNER_INTEGRATION_ROADMAP.md).
 
 ## Responsible social design
 
@@ -90,7 +102,7 @@ src/
   domain.ts      Search, comparison, readiness, registration, persistence
   passport.ts    Identity-aware client for Runner Passport APIs
   main.ts        Human UI and shared-state bridge
-  webmcp.ts      Twelve imperative WebMCP tool definitions and registration
+  webmcp.ts      Thirteen imperative WebMCP tool definitions and registration
   styles.css     Responsive visual system
 worker/
   index.ts       Authenticated Cloudflare Worker API and D1 ownership checks

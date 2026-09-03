@@ -847,6 +847,64 @@ select:focus-visible {
 .agent-schedule-empty p { color: #a8aaa0; font-size: 0.86rem; }
 .agent-schedule-empty button { border: 0; background: transparent; color: var(--lime); font-weight: 900; cursor: pointer; }
 
+.support-loop {
+  border-top: 1px solid #56584f;
+  background: #171815;
+}
+
+.support-loop[hidden] { display: none; }
+
+.support-loop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  background: var(--blue);
+  color: white;
+}
+
+.support-loop-head div { display: grid; gap: 0.18rem; }
+.support-loop-head span { font-size: 0.69rem; font-weight: 950; letter-spacing: 0.09em; }
+.support-loop-head strong { font-size: 0.9rem; }
+.support-loop-head b { font-family: Impact, sans-serif; font-size: 1.9rem; }
+
+.support-loop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.support-loop-grid article {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-height: 148px;
+  padding: 0.9rem 1rem;
+  border-right: 1px solid #45473f;
+  border-bottom: 1px solid #45473f;
+}
+
+.support-loop-grid article:nth-child(even) { border-right: 0; }
+.support-loop-grid small { color: var(--lime); font-size: 0.68rem; font-weight: 950; letter-spacing: 0.08em; }
+.support-loop-grid strong { color: white; font-size: 0.92rem; }
+.support-loop-grid p { margin: 0; color: #c3c5bc; font-size: 0.78rem; line-height: 1.45; }
+.support-loop-grid em { color: #85877f; font-size: 0.69rem; font-style: normal; line-height: 1.4; }
+
+.support-loop-giveback,
+.support-loop-handoff {
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  gap: 0.75rem;
+  padding: 0.78rem 1.25rem;
+  border-bottom: 1px solid #45473f;
+}
+
+.support-loop-giveback span,
+.support-loop-handoff span { color: var(--coral); font-size: 0.66rem; font-weight: 950; letter-spacing: 0.08em; }
+.support-loop-handoff span { color: var(--blue); }
+.support-loop-giveback p,
+.support-loop-handoff p { margin: 0; color: #c3c5bc; font-size: 0.75rem; line-height: 1.45; }
+
 .agent-save-bar {
   display: flex;
   align-items: center;
@@ -2082,6 +2140,9 @@ dialog::backdrop {
   .agent-schedule-row { grid-template-columns: 54px 1fr 38px; }
   .agent-schedule-meta { display: none; }
   .agent-schedule-main { padding-inline: 0.75rem; }
+  .support-loop-grid { grid-template-columns: 1fr; }
+  .support-loop-grid article { border-right: 0; }
+  .support-loop-giveback, .support-loop-handoff { grid-template-columns: 1fr; }
   .hero-visual { min-height: 520px; }
   .hero-actions .button { flex: 1 1 auto; }
   .section-heading { grid-template-columns: 1fr; gap: 1.3rem; }

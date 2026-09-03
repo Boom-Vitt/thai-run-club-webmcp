@@ -1,5 +1,6 @@
 import { EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
 import {
+  buildRunnerSupportLoop,
   checkReadiness,
   compareEvents,
   discoverEvents,
@@ -9,6 +10,7 @@ import {
   safeReturnOptions,
   stageRegistration,
 } from "./domain";
+import type { RunnerSupportLoop } from "./domain";
 import type {
   ActivityEntry,
   City,
@@ -37,6 +39,7 @@ export interface WebMcpTool {
 export interface ToolUiBridge {
   selectEvent: (eventId: string) => void;
   showSchedule: (filters: EventFilters) => void;
+  showSupportLoop: (loop: RunnerSupportLoop) => void;
   showPendingRegistration: (input: RegistrationInput) => void;
   refreshPasses: () => void;
   readPassport: () => Promise<unknown>;
@@ -234,6 +237,36 @@ export function createToolDefinitions(storage: Storage, bridge: ToolUiBridge): W
         const passport = await bridge.readPassport();
         activity(bridge, "Agent read Runner Passport", "Persistent profile and saved weeks loaded");
         return passport;
+      },
+    },
+    {
+      name: "build_runner_support_loop",
+      title: "Build a circular runner support loop",
+      description:
+        "Turn one run into a visible bring, borrow, refill, repair, and give-back plan. Use when a runner asks what to prepare or source without defaulting to shopping. Merchant search remains an optional future handoff and never creates a cart or checkout.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          event_id: { type: "string", minLength: 2, maxLength: 80 },
+        },
+        required: ["event_id"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: false, untrustedContentHint: false },
+      execute: async (input, options) => {
+        assertActive(options);
+        const eventId = stringValue(input.event_id, "event_id", 80);
+        const loop = buildRunnerSupportLoop(eventId);
+        bridge.showSupportLoop(loop);
+        activity(bridge, "Agent built a Runner Commons loop", `${loop.eventLabel} · shop-last plan shown`);
+        return {
+          event_id: loop.eventId,
+          event_label: loop.eventLabel,
+          support_steps: loop.steps,
+          give_back: loop.giveBack,
+          unresolved_needs: loop.unresolvedNeeds,
+          merchant_handoff: loop.merchantHandoff,
+        };
       },
     },
     {

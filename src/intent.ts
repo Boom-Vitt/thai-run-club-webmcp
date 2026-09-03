@@ -1,6 +1,6 @@
 import type { City, EventFilters, PaceBand, SocialOption } from "./types";
 
-export type RunnerIntentAction = "plan" | "compare" | "safe_return" | "save_plan" | "show_passport";
+export type RunnerIntentAction = "plan" | "compare" | "safe_return" | "support_loop" | "save_plan" | "show_passport";
 
 export interface RunnerIntent {
   action: RunnerIntentAction;
@@ -51,6 +51,8 @@ export function interpretRunnerRequest(value: string, fallback: EventFilters = {
     action = "show_passport";
   } else if (/บันทึก|จำ.*(?:ตาราง|แผน)|save.*(?:week|plan|schedule)/i.test(request)) {
     action = "save_plan";
+  } else if (/ต้องเตรียมอะไร|เอาอะไรไป|อุปกรณ์|ยืม|เติมน้ำ|ซ่อม|ก่อนซื้อ|support loop|what.*bring/i.test(request)) {
+    action = "support_loop";
   } else if (/ทางกลับ|กลับบ้าน|เดินทางกลับ|safe return|กลับยังไง/i.test(request)) {
     action = "safe_return";
   } else if (/เปรียบเทียบ|ช่วยเทียบ|เทียบ.*(?:งาน|run|ตัวเลือก)|เลือก.*ไหนดี|compare/i.test(request)) {
