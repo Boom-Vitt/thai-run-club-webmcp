@@ -41,3 +41,10 @@
 - Supports: consistent deployment behavior and the participant's requirement that the project not collide with or silently move around other services.
 - Evidence: the second process exited with code 1 and `Port 5187 is already in use`; the original production preview remained healthy on the exact reserved port.
 - Open risks: a public deployment URL remains outside the local port guarantee and still requires participant authorization.
+
+## 2026-09-03 — Submission package drafting resumed
+
+- Change: Began a claim-bounded English Devpost submission draft with the four required WebMCP explanations, judge testing instructions, required-field placeholders, and an explicit participant-only final-name gate.
+- Supports: WebMCP Leverage, Execution, Potential Impact, Creativity & Ambition, and the required English submission package.
+- Evidence: the official Devpost rules page was refreshed on 2026-09-03 at approximately 13:47 Asia/Bangkok; `npm run check` passed 20/20 tests and the production build; the local preview started on `127.0.0.1:5187`.
+- Open risks: the Devpost Hackathons plugin is unavailable in the current Codex session; no connected Chrome or in-app browser is available for native WebMCP evidence; final participant-selected name, exact `yes` rules acknowledgment, live URL, public repository, public YouTube video, and submitted confirmation remain open.
