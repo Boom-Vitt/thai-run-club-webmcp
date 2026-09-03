@@ -123,31 +123,36 @@ function eventSocialLine(social: SocialOption[]): string {
 }
 
 function routeGraphic(eventId: string) {
-  const paths: Record<string, string> = {
-    "bkk-riverside-5": "M18 104 C58 22 84 146 132 72 S202 20 238 94",
-    "bkk-oldtown-7": "M18 96 C44 38 76 44 91 92 S154 146 176 79 S217 30 242 55",
-    "cnx-moat-5": "M28 100 L52 36 L171 25 L230 74 L196 128 L76 135 Z",
-    "hkt-oldtown-3": "M18 108 C72 98 48 34 109 42 S158 122 238 57",
-    "kkc-lake-10": "M35 78 C35 22 218 20 224 75 S55 148 35 78 Z",
-    "bkk-green-3": "M22 112 C42 46 89 28 124 81 S191 126 239 50",
+  const routes: Record<string, { path: string; start: [number, number]; finish: [number, number] }> = {
+    "bkk-riverside-5": { path: "M18 104 C58 22 84 146 132 72 S202 20 238 94", start: [18, 104], finish: [238, 94] },
+    "bkk-oldtown-7": { path: "M18 96 C44 38 76 44 91 92 S154 146 176 79 S217 30 242 55", start: [18, 96], finish: [242, 55] },
+    "cnx-moat-5": { path: "M28 100 L52 36 L171 25 L230 74 L196 128 L76 135", start: [28, 100], finish: [76, 135] },
+    "hkt-oldtown-3": { path: "M18 108 C72 98 48 34 109 42 S158 122 238 57", start: [18, 108], finish: [238, 57] },
+    "kkc-lake-10": { path: "M35 78 C35 22 218 20 224 75 S100 148 48 104", start: [35, 78], finish: [48, 104] },
+    "bkk-green-3": { path: "M22 112 C42 46 89 28 124 81 S191 126 239 50", start: [22, 112], finish: [239, 50] },
   };
-  const path = paths[eventId] ?? paths["bkk-riverside-5"];
+  const route = routes[eventId] ?? routes["bkk-riverside-5"];
+  const [startX, startY] = route.start;
+  const [finishX, finishY] = route.finish;
   return `
-    <svg viewBox="0 0 260 160" role="img" aria-label="${tr("Symbolic route map", "ภาพเส้นทางเชิงสัญลักษณ์", "路线示意图")}">
+    <svg viewBox="0 0 260 160" role="img" aria-label="${tr("Route preview from start to finish", "ตัวอย่างเส้นทางจากจุดเริ่มถึงเส้นชัย", "从起点到终点的路线预览")}">
       <path class="route-grid" d="M0 32H260M0 80H260M0 128H260M52 0V160M130 0V160M208 0V160" />
-      <path class="route-shadow" d="${path}" />
-      <path class="route-line" d="${path}" pathLength="1" />
-      <circle class="route-start" cx="18" cy="104" r="6" />
-      <circle class="route-finish" cx="238" cy="94" r="8" />
+      <path class="route-shadow" d="${route.path}" />
+      <path class="route-line" d="${route.path}" pathLength="1" />
+      <circle class="route-start" cx="${startX}" cy="${startY}" r="8" />
+      <circle class="route-start-core" cx="${startX}" cy="${startY}" r="3" />
+      <g class="route-finish" transform="translate(${finishX} ${finishY})">
+        <circle r="8" />
+        <path d="M0 -5V-25H17L12 -18L17 -11H0" />
+      </g>
     </svg>`;
 }
 
 function renderShell() {
   const exampleRequests = [
-    tr("Plan an easy alcohol-free 5K in Bangkok", "อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม", "帮我安排曼谷轻松无酒精5公里跑"),
-    tr("Compare social runs with an easy return", "ช่วยเทียบงานสาย social ที่มีทางกลับสะดวก", "比较返程方便的社交跑"),
-    tr("Open a Bangkok run and plan my return", "เปิดงานวิ่งในกรุงเทพแล้วช่วยวางทางกลับบ้าน", "打开曼谷跑步活动并规划返程"),
-    tr("What can I bring, borrow, refill, or repair?", "งานนี้ต้องเตรียมอะไร ยืม เติม หรือซ่อมก่อนซื้อได้ไหม", "我可以携带、借用、补充或维修什么？"),
+    tr("Easy 5K in Bangkok", "วิ่งชิล 5 กม. ในกรุงเทพ", "曼谷轻松跑5公里"),
+    tr("Social run, easy way home", "วิ่งกับเพื่อน กลับบ้านสะดวก", "社交跑，方便回家"),
+    tr("Alcohol-free run this week", "วิ่งสัปดาห์นี้แบบไม่ดื่ม", "本周无酒精跑步"),
   ];
   app.innerHTML = `
     <a class="skip-link" href="#runner-agent">${tr("Skip to Runner Agent", "ข้ามไปใช้ Runner Agent", "跳至跑步智能体")}</a>
@@ -157,10 +162,8 @@ function renderShell() {
         <span>${BRAND.workingName} <small>${BRAND.statusLabel}</small></span>
       </a>
       <nav aria-label="${tr("Main navigation", "เมนูหลัก", "主导航")}">
-        <a href="#runner-agent">Agent</a>
-        <a href="#passport">Passport</a>
-        <a href="#events">Schedule</a>
-        <a href="#rules">Rules</a>
+        <a href="#agent-planner">${tr("Plan", "วางแผน", "规划")}</a>
+        <a href="#events">${tr("Routes", "เส้นทาง", "路线")}</a>
       </nav>
       <div class="header-actions">
         <div class="locale-switcher" role="group" aria-label="${tr("Choose language", "เลือกภาษา", "选择语言")}">
@@ -176,50 +179,35 @@ function renderShell() {
     <main id="top">
       <section class="hero section-shell" id="runner-agent" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> ${tr("THAILAND · RUNNER AGENT · HUMAN IN CONTROL", "ประเทศไทย · RUNNER AGENT · คุณเป็นคนตัดสินใจ", "泰国 · 跑步智能体 · 由你决定")}</p>
-          <h1 id="hero-title">${tr("MOVE WITH\nTHAILAND.", "วิ่งไปกับ\nประเทศไทย", "与泰国\n一起跑") .split("\n").map((line, index) => index === 1 ? `<em>${line}</em>` : line).join("<br />")}</h1>
+          <p class="eyebrow"><span></span> ${tr("RUNNER AGENT", "ผู้ช่วยวางแผนวิ่ง", "跑步智能体")}</p>
+          <h1 id="hero-title">${tr("Plan your next run.", "วางแผนวิ่งครั้งต่อไป", "规划下一次跑步")}</h1>
           <p class="hero-lead">${tr(
-            "One intention becomes a visual run week: matched pace, readiness, safe return, and a human-approved Run Pass.",
-            "หนึ่งความตั้งใจกลายเป็นสัปดาห์วิ่งที่เห็นภาพ: เพซที่ตรงกัน ความพร้อม ทางกลับที่ปลอดภัย และ Run Pass ที่คุณกดยืนยันเอง",
-            "一个想法变成清晰的跑步周计划：匹配配速、检查准备、规划安全返程，并由你亲自确认通行证。",
+            "One request. One clear route. You decide.",
+            "บอกครั้งเดียว ได้เส้นทางชัดเจน คุณตัดสินใจเอง",
+            "一个请求，一条清晰路线，由你决定。",
           )}</p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#agent-planner">${tr("Build my run week", "จัดสัปดาห์วิ่งให้ฉัน", "生成我的跑步周")} <span>↘</span></a>
-            <a class="button button-ghost" href="#events">${tr("Explore routes", "ดูเส้นทาง", "探索路线")} <span>→</span></a>
-          </div>
-          <div class="hero-proof" aria-label="${tr("Key facts", "ข้อมูลสำคัญ", "关键信息")}">
-            <span><strong>${EVENTS.length}</strong> ${tr("routes", "เส้นทาง", "条路线")}</span>
-            <span><strong>14</strong> ${tr("agent actions", "คำสั่ง Agent", "项智能体操作")}</span>
-            <span><strong>D1</strong> ${tr("memory", "ความจำ", "记忆")}</span>
-            <span><strong>1</strong> ${tr("human decision", "การตัดสินใจของคน", "次人工决定")}</span>
-          </div>
-          <div class="agent-promise-grid" aria-label="${tr("Runner Agent journey", "เส้นทางการทำงานของ Runner Agent", "跑步智能体流程")}">
-            <article><i aria-hidden="true">⌁</i><span>01 / SCOUT</span><strong>${tr("Find the fit", "หารันที่ใช่", "找到合适路线")}</strong></article>
-            <article><i aria-hidden="true">⇅</i><span>02 / SORT</span><strong>${tr("Shape the week", "จัดสัปดาห์", "安排一周")}</strong></article>
-            <article><i aria-hidden="true">✓</i><span>03 / CHECK</span><strong>${tr("Run the checks", "เช็กความพร้อม", "检查准备")}</strong></article>
-            <article><i aria-hidden="true">↗</i><span>04 / PASS</span><strong>${tr("You decide", "คุณตัดสินใจ", "由你决定")}</strong></article>
+            <a class="button button-primary" href="#agent-planner">${tr("Plan a run", "วางแผนวิ่ง", "规划跑步")} <span>↓</span></a>
+            <a class="button button-ghost" href="#events">${tr("View routes", "ดูเส้นทาง", "查看路线")} <span>→</span></a>
           </div>
         </div>
-        <div class="run-world" role="img" aria-label="${tr("An interactive Thai pace sculpture built from red, white, and blue motion blades", "ประติมากรรมเพซแบบอินเทอร์แอ็กทีฟ สร้างจากเส้นการเคลื่อนไหวสีแดง ขาว และน้ำเงิน", "由红白蓝动态翼片构成的互动泰式配速雕塑")}">
+        <div class="run-world" role="img" aria-label="${tr("An original running shoe moving from start to finish on a clear route", "รองเท้าวิ่งต้นฉบับเคลื่อนจากจุดเริ่มถึงเส้นชัยบนเส้นทางที่ชัดเจน", "原创跑鞋沿清晰路线从起点前往终点")}">
           <div class="run-world-stage" data-run-world>
-            <div class="run-world-fallback" aria-hidden="true"><span></span><span></span><span></span><b></b></div>
-            <div class="world-index" aria-hidden="true"><span>01</span><i></i><span>04</span></div>
-            <div class="world-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-            <div class="world-caption"><strong>${tr("THAI PACE", "จังหวะไทย", "泰式节奏")}</strong><span>${tr("SCROLL TO ORBIT", "เลื่อนเพื่อหมุนมุมมอง", "滚动切换视角")}</span></div>
-            <div class="world-credit"><span>BLENDER / THREE.JS</span><b>${tr("ORIGINAL 3D", "สามมิติต้นฉบับ", "原创三维")}</b></div>
+            <div class="run-world-fallback" aria-hidden="true"><span class="fallback-route"></span><span class="fallback-shoe"></span><i class="fallback-start"></i><b class="fallback-finish"></b></div>
+            <div class="world-route-key" aria-hidden="true"><span>${tr("START", "เริ่ม", "起点")}</span><i>→</i><strong>${tr("FINISH", "เส้นชัย", "终点")}</strong></div>
+            <div class="world-caption"><strong>${tr("RUN ROUTE", "เส้นทางวิ่ง", "跑步路线")}</strong><span>${tr("SCROLL TO MOVE", "เลื่อนเพื่อไปต่อ", "滚动前进")}</span></div>
           </div>
         </div>
         <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">
-          <div class="agent-desk-top"><span>R/ AGENT RELAY</span><strong>WEEK BOARD</strong><i id="agentIdentityMode">GUEST</i></div>
+          <div class="agent-desk-top"><span>R/</span><strong>${tr("RUN PLAN", "แผนวิ่ง", "跑步计划")}</strong><i id="agentIdentityMode">GUEST</i></div>
           <div class="agent-desk-intro">
-            <p>${tr("Say it naturally. No commands to memorise.", "เล่าได้ตามธรรมชาติ ไม่ต้องจำคำสั่ง", "自然描述即可，无需记住指令。")}</p>
-            <h2 id="agent-planner-title">${tr("Where should we run?", "วันนี้อยากวิ่งที่ไหน?", "我们去哪里跑？")}</h2>
+            <h2 id="agent-planner-title">${tr("Where do you want to run?", "อยากวิ่งที่ไหน?", "想去哪里跑？")}</h2>
           </div>
           <form class="agent-planner-form" id="agentPlannerForm" aria-label="${tr("Ask Runner Agent to build a run week", "ให้ Runner Agent จัดตารางวิ่ง", "让跑步智能体生成跑步周")}">
-            <label class="agent-request-label" for="runnerRequest"><span>${tr("Talk to Runner Agent", "คุยกับ Runner Agent", "与跑步智能体对话")}</span><textarea id="runnerRequest" name="request" maxlength="240" rows="3" placeholder="${exampleRequests[0]}"></textarea></label>
-            <button type="submit"><span>✦</span> ${tr("Build the plan", "คิดและจัดให้", "生成计划")} <b>→</b></button>
+            <label class="agent-request-label" for="runnerRequest"><span>${tr("Describe your run", "บอกการวิ่งที่ต้องการ", "描述你的跑步")}</span><textarea id="runnerRequest" name="request" maxlength="240" rows="2" placeholder="${exampleRequests[0]}"></textarea></label>
+            <button type="submit">${tr("Plan run", "วางแผน", "规划跑步")} <b>→</b></button>
             <details class="agent-filter-details">
-              <summary>${tr("Prefer controls? Set city, distance, pace, and social choice.", "อยากระบุเอง? ปรับเมือง ระยะ เพซ และหลังวิ่ง", "偏好手动设置？选择城市、距离、配速与社交选项。")}</summary>
+              <summary>${tr("Filters", "ตัวกรอง", "筛选")}</summary>
               <div class="agent-filter-grid">
                 <label><span>${tr("City", "เมือง", "城市")}</span><select name="city"><option value="">${tr("Every city", "ทุกเมือง", "所有城市")}</option><option>Bangkok</option><option>Chiang Mai</option><option>Phuket</option><option>Khon Kaen</option></select></label>
                 <label><span>${tr("Distance", "ระยะ", "距离")}</span><select name="distance"><option value="">${tr("Any distance", "ทุกระยะ", "不限距离")}</option><option value="3">3 KM</option><option value="5">5 KM</option><option value="7">7 KM</option><option value="10">10 KM</option></select></label>
@@ -241,14 +229,10 @@ function renderShell() {
         </section>
       </section>
 
-      <section class="ticker" aria-label="${tr("Runner principles", "หลักการกิจกรรม", "跑者原则")}">
-        <div>${tr("BUILD MY WEEK", "จัดสัปดาห์ของฉัน", "生成我的一周")} <span>✦</span> ${tr("USE WHAT I HAVE", "ใช้ของที่มี", "先用已有装备")} <span>✦</span> ${tr("BORROW · REFILL · REPAIR", "ยืม · เติม · ซ่อม", "借用 · 补充 · 维修")} <span>✦</span> ${tr("HUMAN MAKES THE CALL", "คนเป็นผู้ตัดสินใจ", "由人做决定")} <span>✦</span></div>
-      </section>
-
       <section class="passport-section section-shell" id="passport" aria-labelledby="passport-title">
         <div class="passport-heading">
           <p class="eyebrow"><span></span> ${tr("PERSISTENT RUNNER MEMORY", "ความจำของนักวิ่ง", "持久跑者记忆")}</p>
-          <h2 id="passport-title">RUNNER<br /><em>PASSPORT.</em></h2>
+          <h2 id="passport-title">${tr("Runner passport.", "พาสปอร์ตนักวิ่ง", "跑者通行证")}</h2>
           <p>${tr("Your private place for remembered cities, pace, goals, saved weeks, and human-confirmed passes.", "พื้นที่ส่วนตัวที่ให้ Runner Agent จำเมือง เพซ เป้าหมาย ตารางที่บันทึก และ Run Pass ที่คุณยืนยันเอง", "你的私密空间，用于记住城市、配速、目标、已保存计划与本人确认的通行证。")}</p>
         </div>
         <div class="passport-grid">
@@ -265,7 +249,7 @@ function renderShell() {
         <div class="section-heading">
           <div>
             <p class="eyebrow"><span></span> CURATED DEMO EVENTS</p>
-            <h2 id="events-title">${tr("PICK A CITY.<br />FIND YOUR PACE.", "เลือกเมือง<br />เลือกเพซของคุณ", "选择城市<br />找到你的配速")}</h2>
+            <h2 id="events-title">${tr("Find a route.", "หาเส้นทาง", "查找路线")}</h2>
           </div>
           <p>${tr("Visual route cards make every choice scannable. These are fictional demo events and require organiser verification before launch.", "การ์ดเส้นทางช่วยให้เทียบได้จากภาพ อีเวนต์ทั้งหมดเป็นข้อมูลเดโมและต้องได้รับการยืนยันจากผู้จัดก่อนใช้งานจริง", "路线卡片让选择一目了然。所有活动均为虚构演示，上线前须由主办方核实。")}</p>
         </div>
@@ -318,7 +302,7 @@ function renderShell() {
         <div class="section-shell agent-layout">
           <div class="agent-copy">
             <p class="eyebrow eyebrow-light"><span></span> RUNNER AGENT RELAY</p>
-            <h2 id="agent-title">SCOUT. SORT.<br /><em>CHECK. HAND OFF.</em></h2>
+            <h2 id="agent-title">${tr("One plan. Clear actions.", "หนึ่งแผน ทุกขั้นตอนชัดเจน", "一个计划，步骤清晰。")}</h2>
             <p>${tr("The agent turns intent into visible actions: scout, sort, check, plan the return, and stop for your confirmation.", "Agent เปลี่ยนเป้าหมายให้เป็นขั้นตอนที่มองเห็นได้: ค้นหา เรียง เช็ก วางทางกลับ และหยุดรอให้คุณยืนยัน", "智能体把意图转为可见操作：探索、排序、检查、规划返程，并停下来等待你确认。")}</p>
             <div class="agent-status" id="webMcpStatus" role="status">
               <span class="status-dot"></span>
@@ -352,7 +336,7 @@ function renderShell() {
         <div class="section-heading rules-heading">
           <div>
             <p class="eyebrow"><span></span> CLUB CODE</p>
-            <h2 id="rules-title">GOOD RUN.<br />GOOD CALLS.</h2>
+            <h2 id="rules-title">${tr("Run first. Stay safe.", "วิ่งก่อน ปลอดภัยเสมอ", "先跑步，保安全。")}</h2>
           </div>
           <p>${tr("Run first. Every social choice is optional. Everyone gets home safely.", "วิ่งก่อน การสังสรรค์ทุกแบบเป็นทางเลือก และทุกคนกลับบ้านอย่างปลอดภัย", "跑步优先，所有社交选择均为自愿，每个人都安全回家。")}</p>
         </div>
@@ -375,7 +359,7 @@ function renderShell() {
       <section class="passes-section section-shell" id="passes" aria-labelledby="passes-title">
         <div class="passes-copy">
           <p class="eyebrow"><span></span> YOUR NEXT RUN</p>
-          <h2 id="passes-title">RUN PASSES</h2>
+          <h2 id="passes-title">${tr("Your run passes.", "รันพาสของคุณ", "你的跑步通行证")}</h2>
           <p>${tr("Guest passes stay in this browser. Sign-in can keep them in your Passport. The agent prepares; you confirm.", "Guest เก็บ Run Pass ใน browser นี้ ส่วนผู้ที่ sign in จะเก็บไว้ใน Passport โดย Agent เป็นผู้เตรียม แต่คุณเป็นผู้ยืนยัน", "访客通行证保存在当前浏览器；登录后可存入通行证。智能体负责准备，由你确认。")}</p>
         </div>
         <div class="passes-list" id="passesList"></div>

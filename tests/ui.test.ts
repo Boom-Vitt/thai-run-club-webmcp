@@ -25,10 +25,11 @@ describe("Runner Agent working surface", () => {
     await import("../src/main");
     await Promise.resolve();
 
-    expect(document.querySelector("#hero-title")?.textContent).toContain("MOVE WITH");
-    expect(document.querySelector(".run-world")?.getAttribute("aria-label")).toContain("Thai pace sculpture");
-    expect(document.querySelector(".run-world")?.textContent).toContain("THAI PACE");
-    expect(document.querySelector(".run-world")?.textContent).not.toContain("THAI MOTION LOOM");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("Plan your next run");
+    expect(document.querySelector(".run-world")?.getAttribute("aria-label")).toContain("running shoe");
+    expect(document.querySelector(".run-world")?.textContent).toContain("RUN ROUTE");
+    expect(document.querySelector(".run-world")?.textContent).toContain("START");
+    expect(document.querySelector(".run-world")?.textContent).toContain("FINISH");
     expect(document.querySelectorAll(".agent-schedule-row")).toHaveLength(6);
 
     const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;
@@ -116,7 +117,7 @@ describe("Runner Agent working surface", () => {
 
     await import("../src/main");
     await vi.waitFor(() => {
-      expect(document.body.textContent).toContain("14 agent actions");
+      expect(document.body.textContent).toContain("14 actions");
     });
 
     const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;
@@ -177,17 +178,17 @@ describe("Runner Agent working surface", () => {
     await import("../src/main");
 
     expect(document.documentElement.lang).toBe("en");
-    expect(document.querySelector("#hero-title")?.textContent).toContain("THAILAND");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("Plan your next run");
     expect(document.querySelector("#runnerRequest")?.getAttribute("placeholder")).toContain("Bangkok");
 
     document.querySelector<HTMLButtonElement>('[data-locale="zh"]')?.click();
     expect(document.documentElement.lang).toBe("zh-CN");
-    expect(document.querySelector("#hero-title")?.textContent).toContain("与泰国");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("规划下一次跑步");
     expect(document.querySelector("#runnerRequest")?.getAttribute("placeholder")).toContain("曼谷");
 
     document.querySelector<HTMLButtonElement>('[data-locale="th"]')?.click();
     expect(document.documentElement.lang).toBe("th");
-    expect(document.querySelector("#hero-title")?.textContent).toContain("ประเทศไทย");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("วางแผนวิ่งครั้งต่อไป");
     expect(localStorage.getItem("run-social-locale")).toBe("th");
   });
 });

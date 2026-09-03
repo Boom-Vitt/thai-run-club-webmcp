@@ -13,28 +13,100 @@ function supportsWebGl(canvas: HTMLCanvasElement): boolean {
   }
 }
 
-function makeRouteLine(color: string, radius: number, opacity: number, offset = 0): THREE.LineLoop {
-  const points: THREE.Vector3[] = [];
-  for (let index = 0; index < 128; index += 1) {
-    const angle = (index / 128) * Math.PI * 2;
-    points.push(new THREE.Vector3(
-      Math.cos(angle) * radius,
-      Math.sin(angle * 3 + offset) * 0.025,
-      Math.sin(angle) * radius * 0.52,
-    ));
-  }
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
-  return new THREE.LineLoop(geometry, material);
-}
-
-function fitModel(model: THREE.Object3D): void {
+function fitShoe(model: THREE.Object3D): void {
   const bounds = new THREE.Box3().setFromObject(model);
   const size = bounds.getSize(new THREE.Vector3());
   const center = bounds.getCenter(new THREE.Vector3());
-  const scale = 3.78 / Math.max(size.x, size.y, size.z);
+  const scale = 3.55 / Math.max(size.x, size.y, size.z);
   model.scale.setScalar(scale);
-  model.position.set(-center.x * scale, -center.y * scale + 0.22, -center.z * scale);
+  model.position.set(-center.x * scale, -center.y * scale - 0.5, -center.z * scale);
+}
+
+function makeRoute(): {
+  group: THREE.Group;
+  curve: THREE.CatmullRomCurve3;
+  marker: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-2.95, -1.17, 1.24),
+    new THREE.Vector3(-2.72, -1.17, 0.15),
+    new THREE.Vector3(-1.65, -1.17, -1.2),
+    new THREE.Vector3(-0.1, -1.17, -1.48),
+    new THREE.Vector3(1.45, -1.17, -1.08),
+    new THREE.Vector3(2.45, -1.17, -0.08),
+    new THREE.Vector3(2.86, -1.17, 1.14),
+  ], false, "catmullrom", 0.28);
+
+  group.add(new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 128, 0.052, 8, false),
+    new THREE.MeshStandardMaterial({ color: 0xb9c2d2, roughness: 0.72, metalness: 0.02 }),
+  ));
+  group.add(new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 128, 0.026, 8, false),
+    new THREE.MeshStandardMaterial({ color: BRAND.palette.blue, roughness: 0.48, metalness: 0.08 }),
+  ));
+
+  const arrowGeometry = new THREE.ConeGeometry(0.09, 0.24, 3);
+  const arrowMaterial = new THREE.MeshStandardMaterial({ color: BRAND.palette.gold, roughness: 0.35, metalness: 0.18 });
+  for (const amount of [0.2, 0.38, 0.57, 0.75]) {
+    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+    const point = curve.getPointAt(amount);
+    const tangent = curve.getTangentAt(amount).normalize();
+    arrow.position.copy(point).add(new THREE.Vector3(0, 0.055, 0));
+    arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+    group.add(arrow);
+  }
+
+  const startPoint = curve.getPointAt(0);
+  const start = new THREE.Group();
+  start.position.copy(startPoint);
+  const startDisc = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.18, 0.055, 32),
+    new THREE.MeshStandardMaterial({ color: BRAND.palette.red, roughness: 0.38 }),
+  );
+  startDisc.position.y = 0.035;
+  start.add(startDisc);
+  const startRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.22, 0.025, 8, 40),
+    new THREE.MeshStandardMaterial({ color: BRAND.palette.white, roughness: 0.5 }),
+  );
+  startRing.rotation.x = Math.PI / 2;
+  startRing.position.y = 0.045;
+  start.add(startRing);
+  group.add(start);
+
+  const finishPoint = curve.getPointAt(1);
+  const finish = new THREE.Group();
+  finish.position.copy(finishPoint);
+  const postMaterial = new THREE.MeshStandardMaterial({ color: BRAND.palette.ink, roughness: 0.4, metalness: 0.18 });
+  const barMaterial = new THREE.MeshStandardMaterial({ color: BRAND.palette.gold, roughness: 0.36, metalness: 0.25 });
+  for (const offset of [-0.34, 0.34]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.92, 0.07), postMaterial);
+    post.position.set(offset, 0.46, 0);
+    finish.add(post);
+  }
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.12, 0.1), barMaterial);
+  bar.position.y = 0.88;
+  finish.add(bar);
+  for (let index = 0; index < 5; index += 1) {
+    const tile = new THREE.Mesh(
+      new THREE.BoxGeometry(0.13, 0.045, 0.105),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? BRAND.palette.white : BRAND.palette.ink }),
+    );
+    tile.position.set(-0.26 + index * 0.13, 0.88, 0.055);
+    finish.add(tile);
+  }
+  group.add(finish);
+
+  const marker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.105, 24, 16),
+    new THREE.MeshStandardMaterial({ color: BRAND.palette.gold, roughness: 0.28, metalness: 0.36 }),
+  );
+  marker.position.copy(startPoint).add(new THREE.Vector3(0, 0.14, 0));
+  group.add(marker);
+
+  return { group, curve, marker };
 }
 
 export function mountRunWorld(stage: HTMLElement): WorldMount {
@@ -61,78 +133,53 @@ export function mountRunWorld(stage: HTMLElement): WorldMount {
   stage.dataset.renderState = "loading";
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.1;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.7));
   renderer.setClearColor(0x000000, 0);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-  camera.position.set(0, 0.75, 7.15);
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  camera.position.set(0, 1.4, 7.45);
 
   const world = new THREE.Group();
-  world.position.y = -0.12;
+  world.rotation.y = -0.12;
   scene.add(world);
 
-  const sculpturePivot = new THREE.Group();
-  sculpturePivot.rotation.set(-0.025, -0.22, -0.035);
-  world.add(sculpturePivot);
+  const shoePivot = new THREE.Group();
+  shoePivot.rotation.set(0.02, -0.12, -0.025);
+  world.add(shoePivot);
 
-  const routeDeck = new THREE.Group();
-  routeDeck.position.y = -1.42;
-  routeDeck.add(
-    makeRouteLine(BRAND.palette.gold, 2.24, 0.92, 0.4),
-    makeRouteLine(BRAND.palette.white, 2.48, 0.2, 1.1),
-    makeRouteLine(BRAND.palette.blue, 2.72, 0.3, 1.8),
+  const route = makeRoute();
+  world.add(route.group);
+
+  const grid = new THREE.GridHelper(7.2, 12, 0xc6cbd4, 0xdde0e4);
+  grid.position.y = -1.23;
+  const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
+  gridMaterials.forEach((material) => {
+    material.transparent = true;
+    material.opacity = 0.34;
+  });
+  world.add(grid);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(1.72, 64),
+    new THREE.MeshBasicMaterial({ color: 0x071735, transparent: true, opacity: 0.1, depthWrite: false }),
   );
-  world.add(routeDeck);
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.scale.set(1.35, 0.58, 1);
+  shadow.position.set(-0.05, -1.19, -0.02);
+  world.add(shadow);
 
-  const deckGlow = new THREE.Mesh(
-    new THREE.CircleGeometry(2.75, 96),
-    new THREE.MeshBasicMaterial({ color: BRAND.palette.blue, transparent: true, opacity: 0.075, side: THREE.DoubleSide }),
-  );
-  deckGlow.rotation.x = -Math.PI / 2;
-  deckGlow.position.y = -1.45;
-  world.add(deckGlow);
-
-  const markerGeometry = new THREE.TetrahedronGeometry(0.085, 0);
-  const markerMaterial = new THREE.MeshStandardMaterial({ color: BRAND.palette.gold, metalness: 0.62, roughness: 0.25 });
-  for (let index = 0; index < 8; index += 1) {
-    const angle = (index / 8) * Math.PI * 2;
-    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-    marker.position.set(Math.cos(angle) * 2.28, -1.35, Math.sin(angle) * 1.18);
-    marker.rotation.set(angle * 0.5, angle, angle * 0.25);
-    world.add(marker);
-  }
-
-  const particlePositions = new Float32Array(96 * 3);
-  for (let index = 0; index < 96; index += 1) {
-    const angle = index * 2.399963;
-    const radius = 1.8 + ((index * 37) % 100) / 35;
-    particlePositions[index * 3] = Math.cos(angle) * radius;
-    particlePositions[index * 3 + 1] = -0.75 + ((index * 53) % 100) / 42;
-    particlePositions[index * 3 + 2] = Math.sin(angle) * radius;
-  }
-  const particleGeometry = new THREE.BufferGeometry();
-  particleGeometry.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
-  const pointCloud = new THREE.Points(
-    particleGeometry,
-    new THREE.PointsMaterial({ color: BRAND.palette.gold, size: 0.028, transparent: true, opacity: 0.42 }),
-  );
-  world.add(pointCloud);
-
-  scene.add(new THREE.HemisphereLight(BRAND.palette.white, BRAND.palette.ink, 2.2));
-  const keyLight = new THREE.DirectionalLight(BRAND.palette.white, 4.8);
-  keyLight.position.set(-3, 6, 5);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa4b5, 2.9));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 4.2);
+  keyLight.position.set(-3.2, 5.5, 5.2);
   scene.add(keyLight);
-  const redLight = new THREE.PointLight(BRAND.palette.red, 34, 12, 2);
-  redLight.position.set(-4, 1.2, 3.2);
+  const redLight = new THREE.PointLight(BRAND.palette.red, 12, 9, 2);
+  redLight.position.set(-3.8, 0.5, 2.8);
   scene.add(redLight);
-  const blueLight = new THREE.PointLight(BRAND.palette.blue, 42, 14, 2);
-  blueLight.position.set(4.6, 2.6, 2.4);
+  const blueLight = new THREE.PointLight(BRAND.palette.blue, 18, 10, 2);
+  blueLight.position.set(4.2, 2.2, 2.7);
   scene.add(blueLight);
-  const goldLight = new THREE.PointLight(BRAND.palette.gold, 20, 8, 2);
-  goldLight.position.set(0, -0.4, 4.2);
-  scene.add(goldLight);
 
   let pointerX = 0;
   let pointerY = 0;
@@ -183,20 +230,16 @@ export function mountRunWorld(stage: HTMLElement): WorldMount {
     timer.update(timestamp);
     const delta = Math.min(timer.getDelta(), 0.05);
     if (visible && document.visibilityState !== "hidden") {
-      const time = timer.getElapsed();
-      const targetRotation = -0.22 + scrollProgress * Math.PI * 0.86 + pointerX * 0.18;
-      world.rotation.y = THREE.MathUtils.damp(world.rotation.y, targetRotation, 4.4, delta);
-      world.rotation.x = THREE.MathUtils.damp(world.rotation.x, -0.025 + pointerY * 0.055, 4.4, delta);
-      sculpturePivot.rotation.z = THREE.MathUtils.damp(sculpturePivot.rotation.z, -0.035 + scrollProgress * 0.16, 3.6, delta);
-      camera.position.z = THREE.MathUtils.damp(camera.position.z, 7.15 - scrollProgress * 0.72, 3.2, delta);
-      camera.position.x = THREE.MathUtils.damp(camera.position.x, pointerX * 0.26 + scrollProgress * 0.22, 3.2, delta);
-      camera.position.y = THREE.MathUtils.damp(camera.position.y, 0.75 - pointerY * 0.13, 3.2, delta);
-      camera.lookAt(0, 0.16, 0);
-      if (!reducedMotion) {
-        sculpturePivot.position.y = Math.sin(time * 1.35) * 0.025;
-        routeDeck.rotation.y -= delta * 0.04;
-        pointCloud.rotation.y += delta * 0.018;
-      }
+      const targetRotation = -0.12 + scrollProgress * 0.4 + pointerX * 0.07;
+      world.rotation.y = THREE.MathUtils.damp(world.rotation.y, targetRotation, 4.2, delta);
+      world.rotation.x = THREE.MathUtils.damp(world.rotation.x, pointerY * 0.025, 4.2, delta);
+      shoePivot.rotation.z = THREE.MathUtils.damp(shoePivot.rotation.z, -0.025 + scrollProgress * 0.045, 3.2, delta);
+      camera.position.z = THREE.MathUtils.damp(camera.position.z, 7.45 - scrollProgress * 0.28, 3.2, delta);
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, pointerX * 0.12, 3.2, delta);
+      camera.position.y = THREE.MathUtils.damp(camera.position.y, 1.4 - pointerY * 0.08, 3.2, delta);
+      camera.lookAt(0, -0.18, 0);
+      const routePoint = route.curve.getPointAt(reducedMotion ? 0.58 : scrollProgress);
+      route.marker.position.copy(routePoint).add(new THREE.Vector3(0, 0.14, 0));
       renderer.render(scene, camera);
     }
     if (!reducedMotion) frame = window.requestAnimationFrame(renderScene);
@@ -209,7 +252,7 @@ export function mountRunWorld(stage: HTMLElement): WorldMount {
 
   const loader = new GLTFLoader();
   loader.load(
-    "/models/thai-pace-sculpture.glb",
+    "/models/run-route-shoe.glb",
     (gltf) => {
       if (destroyed) return;
       loadedModel = gltf.scene;
@@ -219,8 +262,8 @@ export function mountRunWorld(stage: HTMLElement): WorldMount {
           object.receiveShadow = false;
         }
       });
-      fitModel(loadedModel);
-      sculpturePivot.add(loadedModel);
+      fitShoe(loadedModel);
+      shoePivot.add(loadedModel);
       stage.dataset.renderState = "ready";
       drawStill();
     },
@@ -249,7 +292,6 @@ export function mountRunWorld(stage: HTMLElement): WorldMount {
         }
       });
       loadedModel = null;
-      particleGeometry.dispose();
       timer.dispose();
       renderer.dispose();
       canvas.remove();
