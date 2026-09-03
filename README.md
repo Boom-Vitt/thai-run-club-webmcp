@@ -2,9 +2,19 @@
 
 > Working label only. The participant will choose the final Devpost project name.
 
-A Thai-first Runner Agent that turns a runner's preferences into an actionable run schedule. It can shortlist and compare events, open the chosen run, check participation readiness, plan the journey home, and prepare a Run Pass for visible human confirmation—without requiring an account. Optional ChatGPT sign-in unlocks a D1-backed Runner Passport that remembers the runner's profile, saved weeks, and confirmed passes across visits.
+An English-first, three-language Runner Agent that turns a runner's preferences into an actionable run schedule. English is the default, with complete Thai and Simplified Chinese interface options. It can shortlist and compare events, open the chosen run, check participation readiness, plan the journey home, and prepare a Run Pass for visible human confirmation—without requiring an account. Optional ChatGPT sign-in unlocks a D1-backed Runner Passport that remembers the runner's profile, saved weeks, and confirmed passes across visits.
 
 The Runner Agent week board and fourteen WebMCP actions share the same domain logic, visible state, and persistence APIs. People can use the planner directly in any browser; compatible browsers can let an external agent drive the same actions through `document.modelContext.registerTool()`.
+
+## Thai Motion Loom visual system
+
+The experience is an original sports-editorial interpretation rather than a copy of a third-party brand. Its Thai identity comes from a red, white, and blue route-ribbon system, with gold used as a wayfinding accent. A procedural Three.js runner and three intertwined route ribbons form the hero landmark; camera position, world rotation, and interface markers respond to scrolling and pointer movement.
+
+- The semantic page, planner, and CTA render first; Three.js loads as a separate lazy chunk.
+- WebGL failure keeps the same concept through a CSS fallback illustration.
+- `prefers-reduced-motion` renders a meaningful static frame and stops the animation loop.
+- Desktop and touch layouts keep the planner and confirmation path outside the canvas.
+- Brand truth is centralised in `src/brand.ts`; locale behaviour and event translations live in `src/i18n.ts`.
 
 ## Why this fits WebMCP
 

@@ -128,3 +128,45 @@
 - Evidence: Official Shopify documentation confirms the per-store `/api/ucp/mcp` endpoint, unauthenticated `search_catalog` request with agent profile, `catalog` wrapper, and localized context. UCP confirms product, variant, availability, HTTPS URL, and minor-unit price shapes. Seven test files and 45 tests pass; the TypeScript, Worker, and client production build passes; `git diff --check` passes. Local runtime returns the bounded `store_required` status and a 503 `shopify_not_configured` error without contacting an external store.
 - Chrome evidence: Computer Use changed **WebMCP for testing** to Enabled in Chrome 152.0.7977.65. A fresh controlled Chrome tab still reports `document.modelContext` as undefined because the main Chrome process has not completed a clean relaunch while other Chrome work is active. Native tool discovery/execution and production deployment of this version therefore remain open rather than being claimed.
 - Open risks: the participant must allow Chrome to close and reopen, after which all fourteen native tools require focused validation before hosting. Live Shopify results additionally require the exact authorized permanent `*.myshopify.com` domain. Exact `yes` rules acknowledgment, participant-selected final name, public repository, video, and submission remain incomplete.
+
+## 2026-09-03 — English-first Thai 3D experience and demo production started
+
+- Change: Began an original sports-editorial redesign with English as the default locale, complete Thai and Simplified Chinese UI options, a Thai-flag-derived visual system, and a scroll-responsive 3D running landmark. Began planning an English-only HyperFrames demo with English captions after the website passes QA.
+- Supports: Execution through a clearer image-led journey and multilingual interface; Creativity & Ambition through an original Thai running world and meaningful scroll-driven 3D; the submission requirement that public materials are English or completely translated; and the under-three-minute narrated demo requirement.
+- Evidence planned: locale-switch and English-default tests, preserved WebMCP flow tests, production build, desktop/mobile/reduced-motion browser captures, HyperFrames validation, inspected preview/contact sheet, and a verified final render under three minutes.
+- Open risks: native WebMCP discovery still needs fresh supported-browser evidence; the participant has not supplied the exact `yes` required to acknowledge the rules; the final project name remains participant-only; public repository and actual Devpost submission evidence remain open.
+
+## 2026-09-03 — English-first Thai 3D experience completed locally
+
+- Change: Completed the English-default interface with Thai and Simplified Chinese switching, localized event details and forms, Chinese natural-language intent parsing, an original red-white-blue Thai Motion Loom system, and a lazy-loaded procedural Three.js runner whose camera and route ribbons respond to scroll and pointer movement. Added a CSS/WebGL fallback and static reduced-motion rendering.
+- Supports: Execution through a responsive multilingual working flow; Creativity & Ambition through a coherent Thai 3D metaphor rather than a third-party brand copy; WebMCP Leverage by preserving all fourteen shared actions; and the English submission-material requirement through the English default and English demo-ready surface.
+- Evidence: `npm run check` passes 47/47 tests and the full Worker/client build. Browser QA confirmed English default, live WebGL, scroll progress changing from 0 to 0.273, Chinese switching and Chinese planner copy, a 390×844 CSS viewport with no horizontal overflow, reduced-motion emulation with a stable rendered frame, keyboard focus landing on the skip link, and a clean fresh-tab console. `/api/session` returns HTTP 200. Production dependencies report zero known vulnerabilities.
+- Open risks: the lazy Three.js chunk is about 139 KB gzip after code splitting. Four moderate advisories remain in the dev-only Drizzle Kit toolchain; the suggested npm fix is a breaking downgrade and was not applied, while `npm audit --omit=dev` is clean. Native Chrome still reports `document.modelContext` as unavailable, so native tool discovery remains unverified. Final participant-selected name, exact `yes` rules acknowledgment, public repository, final video, and actual Devpost submission evidence remain open.
+
+## 2026-09-03 — English HyperFrames demo implementation started
+
+- Change: Began a 16:9 English-only product showcase using the completed English site as the visual source of truth. The planned story opens on the Thai 3D runner, follows an English Bangkok 5K request into a visible run plan, and ends at the human-confirmation boundary without inventing a participant-selected final project name.
+- Supports: Execution and WebMCP Leverage by demonstrating the real end-to-end planning path; Creativity & Ambition by carrying the Thai Motion Loom visual language into motion; and the submission requirement for an English, narrated public demo under three minutes.
+- Evidence planned: a durable HyperFrames brief, successful local-site capture, source-traceable storyboard and narration, English caption track, HyperFrames lint/check, inspected cut-adjacent contact sheet, participant preview approval, and a verified MP4 duration below three minutes.
+- Open risks: native WebMCP discovery remains unverified and will not be implied by the video; final rendering still requires the workflow's preview approval; the participant-selected final name and exact `yes` rules acknowledgment remain open, along with public repository, public video hosting, and final Devpost submission evidence.
+
+## 2026-09-03 — HyperFrames final readability polish started
+
+- Change: Began correcting six low-contrast proof numbers and decision labels found by the current HyperFrames browser gate while preserving the approved English-only story, timing, Thai palette, and human-confirmation boundary.
+- Supports: Execution through legible demo information; Creativity & Ambition through a consistent Thai-derived palette; and the English narrated demo requirement without adding unsupported native-WebMCP claims or a participant-only final name.
+- Evidence planned: focused palette edits, a fresh HyperFrames browser gate including the caption zone, and a refreshed final-frame snapshot before returning to the participant approval gate.
+- Open risks: MP4 rendering still requires explicit approval of the final Studio preview. Native WebMCP discovery, exact `yes` rules acknowledgment, participant-selected final name, public repository, public video hosting, and actual Devpost submission remain open.
+
+## 2026-09-03 — HyperFrames final readability polish completed
+
+- Change: Recolored the matched-plan proof numeral, coral decision labels, and final 14/3/1 proof numbers so every tested English label meets the HyperFrames contrast gate while retaining the Thai red, gold, cream, blue, and navy system.
+- Supports: Execution through clear on-screen information; Creativity & Ambition through consistent high-contrast motion art; and the English narrated demo requirement.
+- Evidence: HyperFrames 0.8.27 is current; Chrome, FFmpeg, FFprobe, Docker, 16 GB memory, and 157 GB free disk were detected. The fresh 54.123-second browser gate reports zero runtime, layout, motion, contrast, and lint errors, with zero contrast warnings. Focused snapshots at 27.062, 39.089, 51.116, and 52.499 seconds were visually inspected and remain readable. Studio Preview continues to return HTTP 200 on port 3027.
+- Open risks: no MP4 has been rendered because the mandatory final-preview approval is still pending. Native WebMCP discovery, exact `yes` rules acknowledgment, participant-selected final name, public repository, public video hosting, and actual Devpost submission remain open.
+
+## 2026-09-03 — English-first production upload started
+
+- Change: Began publishing the validated English-default, Thai/Chinese, Thai Motion Loom and scroll-responsive 3D build to the existing Thailand Run Club Site while preserving its current public access policy and working title.
+- Supports: Execution through a judge-accessible live build; Creativity & Ambition through the deployed Thai-derived 3D experience; WebMCP Leverage through the same fourteen shared UI/tool actions; and the English-language submission-material requirement.
+- Evidence planned: fresh 47-test and Worker/client build, immutable source commit pushed to the existing Sites repository, packaged Worker archive with D1 metadata, saved Sites version, explicit public-deployment approval, terminal deployment status, and live HTTP/API read-back.
+- Open risks: the current Site is public, so the prepared version will not be promoted to Production until the participant confirms the resolved public audience. Native WebMCP discovery remains unverified; MP4 render approval, exact `yes` rules acknowledgment, participant-selected final name, public repository, public YouTube video, and actual Devpost submission remain open.

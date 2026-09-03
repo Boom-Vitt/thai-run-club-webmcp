@@ -25,7 +25,7 @@ describe("Runner Agent working surface", () => {
     await import("../src/main");
     await Promise.resolve();
 
-    expect(document.querySelector("#hero-title")?.textContent).toContain("YOUR RUN WEEK");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("MOVE WITH");
     expect(document.querySelectorAll(".agent-schedule-row")).toHaveLength(6);
 
     const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;
@@ -68,8 +68,8 @@ describe("Runner Agent working surface", () => {
       expect(document.querySelector<HTMLElement>("#runnerSupportLoop")?.hidden).toBe(false);
     });
     expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("RUNNER COMMONS");
-    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("ยืมในคลับ");
-    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("ไม่สร้าง cart หรือ checkout");
+    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("Borrow from the club");
+    expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("no cart or checkout");
     expect(document.querySelector("#runnerSupportLoop")?.textContent).toContain("STORE REQUIRED");
   });
 
@@ -124,7 +124,7 @@ describe("Runner Agent working surface", () => {
     await vi.waitFor(() => {
       expect(document.querySelector("#merchantSearchResults")?.textContent).toContain("Repairable safety light");
     });
-    expect(document.querySelector("#merchantSearchResults")?.textContent).toContain("ยังไม่มี cart หรือ checkout");
+    expect(document.querySelector("#merchantSearchResults")?.textContent).toContain("no cart or checkout");
   });
 
   it("loads a signed-in D1-backed Runner Passport and saved week", async () => {
@@ -168,5 +168,23 @@ describe("Runner Agent working surface", () => {
     expect(document.querySelector("#headerAccount")?.textContent).toBe("SR");
     expect(document.querySelector("#passportCard")?.textContent).toContain("15 KM");
     expect(document.querySelectorAll(".saved-week-ticket")).toHaveLength(1);
+  });
+
+  it("defaults to English and switches the complete shell to Chinese and Thai", async () => {
+    await import("../src/main");
+
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("THAILAND");
+    expect(document.querySelector("#runnerRequest")?.getAttribute("placeholder")).toContain("Bangkok");
+
+    document.querySelector<HTMLButtonElement>('[data-locale="zh"]')?.click();
+    expect(document.documentElement.lang).toBe("zh-CN");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("与泰国");
+    expect(document.querySelector("#runnerRequest")?.getAttribute("placeholder")).toContain("曼谷");
+
+    document.querySelector<HTMLButtonElement>('[data-locale="th"]')?.click();
+    expect(document.documentElement.lang).toBe("th");
+    expect(document.querySelector("#hero-title")?.textContent).toContain("ประเทศไทย");
+    expect(localStorage.getItem("run-social-locale")).toBe("th");
   });
 });

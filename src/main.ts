@@ -1,5 +1,21 @@
 import "./styles.css";
-import { CLUB_RULES, EVENTS, PACE_LABELS, SOCIAL_LABELS } from "./data";
+import { CLUB_RULES, EVENTS } from "./data";
+import { BRAND } from "./brand";
+import {
+  getLocale,
+  formatLocalizedDate,
+  initializeLocale,
+  LOCALES,
+  localizeDomainText,
+  localizedEvent,
+  localizedRuleBody,
+  localeTag,
+  paceLabel,
+  setLocale,
+  socialLabel,
+  tr,
+  type Locale,
+} from "./i18n";
 import {
   buildRunnerSupportLoop,
   cancelRegistration,
@@ -50,12 +66,14 @@ import { registerWebMcpTools } from "./webmcp";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 if (!app) throw new Error("App root not found");
+initializeLocale(localStorage);
 
 const state: {
   filters: EventFilters;
   selectedEventId: string | null;
   activities: ActivityEntry[];
   webMcpSupported: boolean;
+  webMcpActionCount: number;
   session: SessionData | null;
   passport: PassportData | null;
   passportStatus: "loading" | "guest" | "ready" | "error";
@@ -74,12 +92,16 @@ const state: {
     },
   ],
   webMcpSupported: false,
+  webMcpActionCount: 0,
   session: null,
   passport: null,
   passportStatus: "loading",
   commerceStatus: null,
   activeSupportLoop: null,
 };
+
+let runWorldMount: { destroy: () => void } | null = null;
+let runWorldLoadToken = 0;
 
 function escapeHtml(value: string): string {
   return value
@@ -91,18 +113,13 @@ function escapeHtml(value: string): string {
 }
 
 function formatDate(date: string): string {
-  return new Intl.DateTimeFormat("th-TH", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(`${date}T12:00:00+07:00`));
+  return formatLocalizedDate(date);
 }
 
 function eventSocialLine(social: SocialOption[]): string {
-  if (social.includes("beer_optional")) return "Run + optional 20+ social";
-  if (social.includes("alcohol_free")) return "Run + alcohol-free social";
-  return "Run only";
+  if (social.includes("beer_optional")) return tr("Run + optional 20+ social", "วิ่ง + สังสรรค์ 20+ แบบเลือกได้", "跑步 + 20岁以上自选社交");
+  if (social.includes("alcohol_free")) return tr("Run + alcohol-free social", "วิ่ง + สังสรรค์แบบไม่มีแอลกอฮอล์", "跑步 + 无酒精社交");
+  return socialLabel("run_only");
 }
 
 function routeGraphic(eventId: string) {
@@ -116,7 +133,7 @@ function routeGraphic(eventId: string) {
   };
   const path = paths[eventId] ?? paths["bkk-riverside-5"];
   return `
-    <svg viewBox="0 0 260 160" role="img" aria-label="ภาพเส้นทางเชิงสัญลักษณ์">
+    <svg viewBox="0 0 260 160" role="img" aria-label="${tr("Symbolic route map", "ภาพเส้นทางเชิงสัญลักษณ์", "路线示意图")}">
       <path class="route-grid" d="M0 32H260M0 80H260M0 128H260M52 0V160M130 0V160M208 0V160" />
       <path class="route-shadow" d="${path}" />
       <path class="route-line" d="${path}" pathLength="1" />
@@ -126,23 +143,32 @@ function routeGraphic(eventId: string) {
 }
 
 function renderShell() {
+  const exampleRequests = [
+    tr("Plan an easy alcohol-free 5K in Bangkok", "อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม", "帮我安排曼谷轻松无酒精5公里跑"),
+    tr("Compare social runs with an easy return", "ช่วยเทียบงานสาย social ที่มีทางกลับสะดวก", "比较返程方便的社交跑"),
+    tr("Open a Bangkok run and plan my return", "เปิดงานวิ่งในกรุงเทพแล้วช่วยวางทางกลับบ้าน", "打开曼谷跑步活动并规划返程"),
+    tr("What can I bring, borrow, refill, or repair?", "งานนี้ต้องเตรียมอะไร ยืม เติม หรือซ่อมก่อนซื้อได้ไหม", "我可以携带、借用、补充或维修什么？"),
+  ];
   app.innerHTML = `
-    <a class="skip-link" href="#runner-agent">ข้ามไปใช้ Runner Agent</a>
+    <a class="skip-link" href="#runner-agent">${tr("Skip to Runner Agent", "ข้ามไปใช้ Runner Agent", "跳至跑步智能体")}</a>
     <header class="site-header">
-      <a class="wordmark" href="#top" aria-label="กลับด้านบน">
+      <a class="wordmark" href="#top" aria-label="${tr("Back to top", "กลับด้านบน", "返回顶部")}">
         <span class="wordmark-mark" aria-hidden="true">R/</span>
-        <span>RUN SOCIAL TH <small>WORKING LABEL</small></span>
+        <span>${BRAND.workingName} <small>${BRAND.statusLabel}</small></span>
       </a>
-      <nav aria-label="เมนูหลัก">
+      <nav aria-label="${tr("Main navigation", "เมนูหลัก", "主导航")}">
         <a href="#runner-agent">Agent</a>
         <a href="#passport">Passport</a>
         <a href="#events">Schedule</a>
         <a href="#rules">Rules</a>
       </nav>
       <div class="header-actions">
-        <a class="header-account" id="headerAccount" href="#passport">Guest</a>
+        <div class="locale-switcher" role="group" aria-label="${tr("Choose language", "เลือกภาษา", "选择语言")}">
+          ${LOCALES.map((locale) => `<button type="button" data-locale="${locale.code}" class="${getLocale() === locale.code ? "is-active" : ""}" aria-pressed="${getLocale() === locale.code}" aria-label="${locale.label}">${locale.short}</button>`).join("")}
+        </div>
+        <a class="header-account" id="headerAccount" href="#passport">${tr("Guest", "ผู้เยี่ยมชม", "访客")}</a>
         <button class="header-pass" id="showPassesButton" type="button">
-          My run pass <span id="passCount">0</span>
+          ${tr("My run pass", "Run Pass ของฉัน", "我的跑步通行证")} <span id="passCount">0</span>
         </button>
       </div>
     </header>
@@ -150,77 +176,87 @@ function renderShell() {
     <main id="top">
       <section class="hero section-shell" id="runner-agent" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> RUNNER AGENT · GUEST READY · PASSPORT OPTIONAL</p>
-          <h1 id="hero-title">YOUR RUN WEEK.<br /><em>READY TO GO.</em></h1>
-          <p class="hero-lead">เพื่อนวิ่งที่ช่วยหา run ให้ตรงเพซ จัดตาราง เช็กความพร้อม วางทางกลับ และจัดของแบบ bring · borrow · refill · repair ก่อนค้นหาเฉพาะสิ่งที่ยังขาด—เปิดแล้วใช้ได้ทันที หรือ sign in เพื่อให้ Agent จำสัปดาห์ของคุณ</p>
+          <p class="eyebrow"><span></span> ${tr("THAILAND · RUNNER AGENT · HUMAN IN CONTROL", "ประเทศไทย · RUNNER AGENT · คุณเป็นคนตัดสินใจ", "泰国 · 跑步智能体 · 由你决定")}</p>
+          <h1 id="hero-title">${tr("MOVE WITH\nTHAILAND.", "วิ่งไปกับ\nประเทศไทย", "与泰国\n一起跑") .split("\n").map((line, index) => index === 1 ? `<em>${line}</em>` : line).join("<br />")}</h1>
+          <p class="hero-lead">${tr(
+            "One intention becomes a visual run week: matched pace, readiness, safe return, and a human-approved Run Pass.",
+            "หนึ่งความตั้งใจกลายเป็นสัปดาห์วิ่งที่เห็นภาพ: เพซที่ตรงกัน ความพร้อม ทางกลับที่ปลอดภัย และ Run Pass ที่คุณกดยืนยันเอง",
+            "一个想法变成清晰的跑步周计划：匹配配速、检查准备、规划安全返程，并由你亲自确认通行证。",
+          )}</p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#agent-planner">ให้ Agent จัดตาราง <span>↘</span></a>
-            <a class="button button-ghost" href="#events">ดู run ทั้งหมด <span>→</span></a>
+            <a class="button button-primary" href="#agent-planner">${tr("Build my run week", "จัดสัปดาห์วิ่งให้ฉัน", "生成我的跑步周")} <span>↘</span></a>
+            <a class="button button-ghost" href="#events">${tr("Explore routes", "ดูเส้นทาง", "探索路线")} <span>→</span></a>
           </div>
-          <div class="hero-proof" aria-label="ข้อมูลสำคัญ">
-            <span><strong>${EVENTS.length}</strong> runs in schedule</span>
-            <span><strong>14</strong> agent actions</span>
-            <span><strong>D1</strong> runner memory</span>
-            <span><strong>1</strong> human final call</span>
+          <div class="hero-proof" aria-label="${tr("Key facts", "ข้อมูลสำคัญ", "关键信息")}">
+            <span><strong>${EVENTS.length}</strong> ${tr("routes", "เส้นทาง", "条路线")}</span>
+            <span><strong>14</strong> ${tr("agent actions", "คำสั่ง Agent", "项智能体操作")}</span>
+            <span><strong>D1</strong> ${tr("memory", "ความจำ", "记忆")}</span>
+            <span><strong>1</strong> ${tr("human decision", "การตัดสินใจของคน", "次人工决定")}</span>
           </div>
-          <div class="agent-promise-grid" aria-label="สิ่งที่ Runner Agent ช่วยได้">
-            <article><span>01 / SCOUT</span><strong>หา run ที่เข้ากับคุณ</strong><p>เมือง ระยะ เพซ วัน และ social choice</p></article>
-            <article><span>02 / SORT</span><strong>จัดตารางและเทียบตัวเลือก</strong><p>เวลา ราคา ที่ว่าง และเส้นทางกลับ</p></article>
-            <article><span>03 / CHECK</span><strong>เช็กก่อนออกวิ่ง</strong><p>กฎ ความพร้อม น้ำ และแผนเดินทาง</p></article>
-            <article><span>04 / COMMONS</span><strong>ใช้ของเดิมก่อนค้นหาของใหม่</strong><p>Bring · borrow · refill · repair · search the gap</p></article>
+          <div class="agent-promise-grid" aria-label="${tr("Runner Agent journey", "เส้นทางการทำงานของ Runner Agent", "跑步智能体流程")}">
+            <article><i aria-hidden="true">⌁</i><span>01 / SCOUT</span><strong>${tr("Find the fit", "หารันที่ใช่", "找到合适路线")}</strong></article>
+            <article><i aria-hidden="true">⇅</i><span>02 / SORT</span><strong>${tr("Shape the week", "จัดสัปดาห์", "安排一周")}</strong></article>
+            <article><i aria-hidden="true">✓</i><span>03 / CHECK</span><strong>${tr("Run the checks", "เช็กความพร้อม", "检查准备")}</strong></article>
+            <article><i aria-hidden="true">↗</i><span>04 / PASS</span><strong>${tr("You decide", "คุณตัดสินใจ", "由你决定")}</strong></article>
+          </div>
+        </div>
+        <div class="run-world" role="img" aria-label="${tr("An interactive 3D runner moving through red, white, and blue Thai route ribbons", "นักวิ่ง 3D เคลื่อนผ่านริบบิ้นเส้นทางสีแดง ขาว น้ำเงินของไทย", "3D跑者穿梭于泰国红白蓝路线飘带之间")}">
+          <div class="run-world-stage" data-run-world>
+            <div class="run-world-fallback" aria-hidden="true"><span></span><span></span><span></span><b>R/</b></div>
+            <div class="world-orbit world-orbit-one"><i>01</i><strong>${tr("SCOUT", "ค้นหา", "探索")}</strong></div>
+            <div class="world-orbit world-orbit-two"><i>02</i><strong>${tr("CHECK", "ตรวจ", "检查")}</strong></div>
+            <div class="world-orbit world-orbit-three"><i>03</i><strong>${tr("GO", "วิ่ง", "出发")}</strong></div>
+            <div class="world-stamp"><span>${tr("SCROLL TO MOVE", "เลื่อนเพื่อขยับ", "滚动驱动")}</span><strong>THAI<br />MOTION<br />LOOM</strong></div>
           </div>
         </div>
         <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">
           <div class="agent-desk-top"><span>R/ AGENT RELAY</span><strong>WEEK BOARD</strong><i id="agentIdentityMode">GUEST</i></div>
           <div class="agent-desk-intro">
-            <p>เล่าได้ตามธรรมชาติ ไม่ต้องจำคำสั่ง</p>
-            <h2 id="agent-planner-title">วันนี้อยากให้ช่วยอะไร?</h2>
+            <p>${tr("Say it naturally. No commands to memorise.", "เล่าได้ตามธรรมชาติ ไม่ต้องจำคำสั่ง", "自然描述即可，无需记住指令。")}</p>
+            <h2 id="agent-planner-title">${tr("Where should we run?", "วันนี้อยากวิ่งที่ไหน?", "我们去哪里跑？")}</h2>
           </div>
-          <form class="agent-planner-form" id="agentPlannerForm" aria-label="ให้ Runner Agent จัดตารางวิ่ง">
-            <label class="agent-request-label" for="runnerRequest"><span>คุยกับ Runner Agent</span><textarea id="runnerRequest" name="request" maxlength="240" rows="3" placeholder="เช่น สัปดาห์นี้อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม"></textarea></label>
-            <button type="submit"><span>✦</span> ให้ Agent คิดและจัดให้ <b>→</b></button>
+          <form class="agent-planner-form" id="agentPlannerForm" aria-label="${tr("Ask Runner Agent to build a run week", "ให้ Runner Agent จัดตารางวิ่ง", "让跑步智能体生成跑步周")}">
+            <label class="agent-request-label" for="runnerRequest"><span>${tr("Talk to Runner Agent", "คุยกับ Runner Agent", "与跑步智能体对话")}</span><textarea id="runnerRequest" name="request" maxlength="240" rows="3" placeholder="${exampleRequests[0]}"></textarea></label>
+            <button type="submit"><span>✦</span> ${tr("Build the plan", "คิดและจัดให้", "生成计划")} <b>→</b></button>
             <details class="agent-filter-details">
-              <summary>อยากระบุเอง? ปรับเมือง ระยะ เพซ และหลังวิ่ง</summary>
+              <summary>${tr("Prefer controls? Set city, distance, pace, and social choice.", "อยากระบุเอง? ปรับเมือง ระยะ เพซ และหลังวิ่ง", "偏好手动设置？选择城市、距离、配速与社交选项。")}</summary>
               <div class="agent-filter-grid">
-                <label><span>เมือง</span><select name="city"><option value="">ทุกเมือง</option><option>Bangkok</option><option>Chiang Mai</option><option>Phuket</option><option>Khon Kaen</option></select></label>
-                <label><span>ระยะ</span><select name="distance"><option value="">ทุกระยะ</option><option value="3">3 KM</option><option value="5">5 KM</option><option value="7">7 KM</option><option value="10">10 KM</option></select></label>
-                <label><span>เพซ</span><select name="pace"><option value="">ทุกเพซ</option><option value="social">Social</option><option value="steady">Steady</option><option value="tempo">Tempo</option></select></label>
-                <label><span>หลังวิ่ง</span><select name="social"><option value="">ทุกแบบ</option><option value="alcohol_free">Alcohol-free</option><option value="run_only">Run only</option><option value="beer_optional">Optional 20+</option></select></label>
+                <label><span>${tr("City", "เมือง", "城市")}</span><select name="city"><option value="">${tr("Every city", "ทุกเมือง", "所有城市")}</option><option>Bangkok</option><option>Chiang Mai</option><option>Phuket</option><option>Khon Kaen</option></select></label>
+                <label><span>${tr("Distance", "ระยะ", "距离")}</span><select name="distance"><option value="">${tr("Any distance", "ทุกระยะ", "不限距离")}</option><option value="3">3 KM</option><option value="5">5 KM</option><option value="7">7 KM</option><option value="10">10 KM</option></select></label>
+                <label><span>${tr("Pace", "เพซ", "配速")}</span><select name="pace"><option value="">${tr("Any pace", "ทุกเพซ", "不限配速")}</option><option value="social">${paceLabel("social")}</option><option value="steady">${paceLabel("steady")}</option><option value="tempo">${paceLabel("tempo")}</option></select></label>
+                <label><span>${tr("After the run", "หลังวิ่ง", "跑后")}</span><select name="social"><option value="">${tr("Any choice", "ทุกแบบ", "不限")}</option><option value="alcohol_free">${socialLabel("alcohol_free")}</option><option value="run_only">${socialLabel("run_only")}</option><option value="beer_optional">${socialLabel("beer_optional")}</option></select></label>
               </div>
             </details>
           </form>
-          <div class="agent-suggestions" aria-label="ตัวอย่างที่พูดกับ Runner Agent ได้">
-            <button type="button" data-runner-request="อยากวิ่ง 5 กม. ในกรุงเทพแบบชิล ๆ และไม่ดื่ม">“อยากวิ่งชิล ๆ 5 กม.”</button>
-            <button type="button" data-runner-request="ช่วยเทียบงานสาย social ที่มีทางกลับสะดวก">“ช่วยเทียบงานสาย social”</button>
-            <button type="button" data-runner-request="เปิดงานวิ่งในกรุงเทพแล้วช่วยวางทางกลับบ้าน">“ช่วยวางทางกลับบ้าน”</button>
-            <button type="button" data-runner-request="งานนี้ต้องเตรียมอะไร ยืม เติม หรือซ่อมก่อนซื้อได้ไหม">“งานนี้ต้องเตรียมอะไร?”</button>
+          <div class="agent-suggestions" aria-label="${tr("Runner Agent examples", "ตัวอย่างที่พูดกับ Runner Agent ได้", "跑步智能体示例")}">
+            ${exampleRequests.map((request) => `<button type="button" data-runner-request="${escapeHtml(request)}">“${escapeHtml(request)}”</button>`).join("")}
           </div>
           <div class="agent-plan-summary" id="agentPlanSummary" role="status" aria-live="polite"></div>
           <div class="agent-schedule-board" id="agentScheduleBoard"></div>
           <aside class="support-loop" id="runnerSupportLoop" aria-live="polite" hidden></aside>
           <div class="agent-save-bar">
-            <p id="saveWeekHint">จัดตารางได้ทันที · Sign in เมื่อต้องการให้ Agent จำ</p>
-            <button id="saveWeekButton" type="button">SAVE TO PASSPORT <span>↗</span></button>
+            <p id="saveWeekHint">${tr("The plan works now · Sign in only to remember it", "จัดตารางได้ทันที · Sign in เมื่อต้องการให้ Agent จำ", "计划立即可用 · 仅在需要记忆时登录")}</p>
+            <button id="saveWeekButton" type="button">${tr("SAVE TO PASSPORT", "บันทึกใน PASSPORT", "保存至通行证")} <span>↗</span></button>
           </div>
         </section>
       </section>
 
-      <section class="ticker" aria-label="หลักการกิจกรรม">
-        <div>BUILD MY WEEK <span>✦</span> USE WHAT I HAVE <span>✦</span> BORROW · REFILL · REPAIR <span>✦</span> SEARCH ONLY THE GAP <span>✦</span> HAND ME THE FINAL CALL <span>✦</span></div>
+      <section class="ticker" aria-label="${tr("Runner principles", "หลักการกิจกรรม", "跑者原则")}">
+        <div>${tr("BUILD MY WEEK", "จัดสัปดาห์ของฉัน", "生成我的一周")} <span>✦</span> ${tr("USE WHAT I HAVE", "ใช้ของที่มี", "先用已有装备")} <span>✦</span> ${tr("BORROW · REFILL · REPAIR", "ยืม · เติม · ซ่อม", "借用 · 补充 · 维修")} <span>✦</span> ${tr("HUMAN MAKES THE CALL", "คนเป็นผู้ตัดสินใจ", "由人做决定")} <span>✦</span></div>
       </section>
 
       <section class="passport-section section-shell" id="passport" aria-labelledby="passport-title">
         <div class="passport-heading">
-          <p class="eyebrow"><span></span> PERSISTENT RUNNER MEMORY</p>
+          <p class="eyebrow"><span></span> ${tr("PERSISTENT RUNNER MEMORY", "ความจำของนักวิ่ง", "持久跑者记忆")}</p>
           <h2 id="passport-title">RUNNER<br /><em>PASSPORT.</em></h2>
-          <p>พื้นที่ส่วนตัวที่ให้ Runner Agent จำเมือง เพซ เป้าหมาย ตารางที่บันทึก และ Run Pass ของคุณข้ามการเปิดเว็บครั้งถัดไป</p>
+          <p>${tr("Your private place for remembered cities, pace, goals, saved weeks, and human-confirmed passes.", "พื้นที่ส่วนตัวที่ให้ Runner Agent จำเมือง เพซ เป้าหมาย ตารางที่บันทึก และ Run Pass ที่คุณยืนยันเอง", "你的私密空间，用于记住城市、配速、目标、已保存计划与本人确认的通行证。")}</p>
         </div>
         <div class="passport-grid">
           <article class="passport-card" id="passportCard" aria-live="polite">
-            <div class="passport-loading"><span>R/</span><p>กำลังเปิด Runner Passport…</p></div>
+            <div class="passport-loading"><span>R/</span><p>${tr("Opening Runner Passport…", "กำลังเปิด Runner Passport…", "正在打开跑者通行证…")}</p></div>
           </article>
-          <section class="passport-ledger" id="passportLedger" aria-label="Saved run weeks">
-            <div class="passport-loading"><span>00</span><p>กำลังอ่านตารางที่บันทึก…</p></div>
+          <section class="passport-ledger" id="passportLedger" aria-label="${tr("Saved run weeks", "สัปดาห์วิ่งที่บันทึก", "已保存的跑步周")}">
+            <div class="passport-loading"><span>00</span><p>${tr("Reading saved weeks…", "กำลังอ่านตารางที่บันทึก…", "正在读取已保存计划…")}</p></div>
           </section>
         </div>
       </section>
@@ -229,15 +265,15 @@ function renderShell() {
         <div class="section-heading">
           <div>
             <p class="eyebrow"><span></span> CURATED DEMO EVENTS</p>
-            <h2 id="events-title">เลือกเมือง<br />เลือกเพซของคุณ</h2>
+            <h2 id="events-title">${tr("PICK A CITY.<br />FIND YOUR PACE.", "เลือกเมือง<br />เลือกเพซของคุณ", "选择城市<br />找到你的配速")}</h2>
           </div>
-          <p>อีเวนต์ตัวอย่างสำหรับพิสูจน์ end-to-end experience ข้อมูลจริงต้องได้รับการยืนยันจากผู้จัดก่อนเผยแพร่</p>
+          <p>${tr("Visual route cards make every choice scannable. These are fictional demo events and require organiser verification before launch.", "การ์ดเส้นทางช่วยให้เทียบได้จากภาพ อีเวนต์ทั้งหมดเป็นข้อมูลเดโมและต้องได้รับการยืนยันจากผู้จัดก่อนใช้งานจริง", "路线卡片让选择一目了然。所有活动均为虚构演示，上线前须由主办方核实。")}</p>
         </div>
-        <form class="filter-rail" id="eventFilters" aria-label="ตัวกรองอีเวนต์">
+        <form class="filter-rail" id="eventFilters" aria-label="${tr("Event filters", "ตัวกรองอีเวนต์", "活动筛选")}">
           <label>
-            <span>เมือง</span>
+            <span>${tr("City", "เมือง", "城市")}</span>
             <select name="city">
-              <option value="">ทุกเมือง</option>
+              <option value="">${tr("Every city", "ทุกเมือง", "所有城市")}</option>
               <option>Bangkok</option>
               <option>Chiang Mai</option>
               <option>Phuket</option>
@@ -245,9 +281,9 @@ function renderShell() {
             </select>
           </label>
           <label>
-            <span>ระยะ</span>
+            <span>${tr("Distance", "ระยะ", "距离")}</span>
             <select name="distance">
-              <option value="">ทุกระยะ</option>
+              <option value="">${tr("Any distance", "ทุกระยะ", "不限距离")}</option>
               <option value="3">3 KM</option>
               <option value="5">5 KM</option>
               <option value="7">7 KM</option>
@@ -255,26 +291,26 @@ function renderShell() {
             </select>
           </label>
           <label>
-            <span>เพซ</span>
+            <span>${tr("Pace", "เพซ", "配速")}</span>
             <select name="pace">
-              <option value="">ทุกเพซ</option>
-              <option value="social">Social</option>
-              <option value="steady">Steady</option>
-              <option value="tempo">Tempo</option>
+              <option value="">${tr("Any pace", "ทุกเพซ", "不限配速")}</option>
+              <option value="social">${paceLabel("social")}</option>
+              <option value="steady">${paceLabel("steady")}</option>
+              <option value="tempo">${paceLabel("tempo")}</option>
             </select>
           </label>
           <label>
-            <span>หลังวิ่ง</span>
+            <span>${tr("After the run", "หลังวิ่ง", "跑后")}</span>
             <select name="social">
-              <option value="">ทุกแบบ</option>
-              <option value="alcohol_free">Alcohol-free</option>
-              <option value="beer_optional">Beer optional · 20+</option>
-              <option value="run_only">Run only</option>
+              <option value="">${tr("Any choice", "ทุกแบบ", "不限")}</option>
+              <option value="alcohol_free">${socialLabel("alcohol_free")}</option>
+              <option value="beer_optional">${socialLabel("beer_optional")}</option>
+              <option value="run_only">${socialLabel("run_only")}</option>
             </select>
           </label>
           <button class="filter-reset" type="reset">Reset ↺</button>
         </form>
-        <div class="events-meta"><p><strong id="eventCount">${EVENTS.length}</strong> runs available</p><p>Demo data · not live events</p></div>
+        <div class="events-meta"><p><strong id="eventCount">${EVENTS.length}</strong> ${tr("runs available", "รายการที่เลือกได้", "条可选路线")}</p><p>${tr("Demo data · not live events", "ข้อมูลเดโม · ไม่ใช่อีเวนต์จริง", "演示数据 · 非真实活动")}</p></div>
         <div class="event-grid" id="eventGrid"></div>
       </section>
 
@@ -283,30 +319,30 @@ function renderShell() {
           <div class="agent-copy">
             <p class="eyebrow eyebrow-light"><span></span> RUNNER AGENT RELAY</p>
             <h2 id="agent-title">SCOUT. SORT.<br /><em>CHECK. HAND OFF.</em></h2>
-            <p>Runner Agent เปลี่ยนเป้าหมายของคุณให้เป็นตารางที่ลงมือทำต่อได้: หาและเรียงงาน เปิดรายละเอียด เช็กกฎกับความพร้อม วางทางกลับ และเตรียมการสมัครไว้บนหน้าจอให้คุณตัดสินใจ</p>
+            <p>${tr("The agent turns intent into visible actions: scout, sort, check, plan the return, and stop for your confirmation.", "Agent เปลี่ยนเป้าหมายให้เป็นขั้นตอนที่มองเห็นได้: ค้นหา เรียง เช็ก วางทางกลับ และหยุดรอให้คุณยืนยัน", "智能体把意图转为可见操作：探索、排序、检查、规划返程，并停下来等待你确认。")}</p>
             <div class="agent-status" id="webMcpStatus" role="status">
               <span class="status-dot"></span>
               <div><strong>Checking WebMCP…</strong><small>Human interface is already available</small></div>
             </div>
             <div class="agent-steps">
-              <article><span>01</span><div><h3>BUILD THE BOARD</h3><p>จัดตารางตามเมือง ระยะ เพซ และตัวเลือกหลังวิ่ง</p></div></article>
-              <article><span>02</span><div><h3>SHORTLIST THE FIT</h3><p>เทียบวัน เวลา ราคา ที่ว่าง และข้อมูลเดินทางกลับ</p></div></article>
-              <article><span>03</span><div><h3>RUN THE CHECKS</h3><p>เช็กกฎ ความพร้อม น้ำ อายุ และแผนเดินทาง</p></div></article>
-              <article><span>04</span><div><h3>PASS THE BATON</h3><p>เตรียม Run Pass แล้วหยุดรอคนกดยืนยันบนหน้าจอ</p></div></article>
+              <article><span>01</span><div><h3>BUILD THE BOARD</h3><p>${tr("City · distance · pace · social choice", "เมือง · ระยะ · เพซ · ตัวเลือกหลังวิ่ง", "城市 · 距离 · 配速 · 社交选择")}</p></div></article>
+              <article><span>02</span><div><h3>SHORTLIST THE FIT</h3><p>${tr("Date · time · price · spots · return", "วัน · เวลา · ราคา · ที่ว่าง · ทางกลับ", "日期 · 时间 · 价格 · 名额 · 返程")}</p></div></article>
+              <article><span>03</span><div><h3>RUN THE CHECKS</h3><p>${tr("Rules · readiness · water · age", "กฎ · ความพร้อม · น้ำ · อายุ", "规则 · 准备 · 补水 · 年龄")}</p></div></article>
+              <article><span>04</span><div><h3>PASS THE BATON</h3><p>${tr("The screen stops for your final call", "หน้าจอหยุดรอให้คุณตัดสินใจ", "屏幕停下，等待你的最终决定")}</p></div></article>
             </div>
           </div>
           <div class="agent-console" aria-label="WebMCP activity">
             <div class="console-top"><span><i></i><i></i><i></i></span><strong>RUNNER AGENT ACTIVITY</strong><small id="toolCount">14 actions</small></div>
             <div class="console-prompt">
               <span>YOU</span>
-              <p id="agentPromptText">“เปิดตารางวิ่งทั้งหมด แล้วช่วยจัดลำดับสิ่งที่ฉันทำต่อได้”</p>
+              <p id="agentPromptText">“${tr("Show every run and put my next move first", "เปิดตารางวิ่งทั้งหมด แล้วจัดสิ่งที่ฉันทำต่อได้ไว้ก่อน", "显示所有路线，并优先给出下一步") }”</p>
             </div>
             <div class="activity-list" id="activityList" aria-live="polite"></div>
             <div class="console-actions" id="agentQuickActions">
-              <button type="button" data-agent-action="plan-week">จัดตารางทุกงาน</button>
-              <button type="button" data-agent-action="bangkok-easy">หา Bangkok easy 5K</button>
-              <button type="button" data-agent-action="compare-social">เทียบสาย social</button>
-              <button type="button" data-agent-action="return">วางทางกลับ</button>
+              <button type="button" data-agent-action="plan-week">${tr("Build full week", "จัดตารางทุกงาน", "生成完整一周")}</button>
+              <button type="button" data-agent-action="bangkok-easy">${tr("Find Bangkok easy 5K", "หา Bangkok easy 5K", "寻找曼谷轻松5公里")}</button>
+              <button type="button" data-agent-action="compare-social">${tr("Compare social runs", "เทียบสาย social", "比较社交跑")}</button>
+              <button type="button" data-agent-action="return">${tr("Plan safe return", "วางทางกลับ", "规划安全返程")}</button>
             </div>
           </div>
         </div>
@@ -318,7 +354,7 @@ function renderShell() {
             <p class="eyebrow"><span></span> CLUB CODE</p>
             <h2 id="rules-title">GOOD RUN.<br />GOOD CALLS.</h2>
           </div>
-          <p>กฎถูกออกแบบให้การวิ่งมาก่อน การดื่มเป็นทางเลือก และทุกคนกลับบ้านอย่างปลอดภัย</p>
+          <p>${tr("Run first. Every social choice is optional. Everyone gets home safely.", "วิ่งก่อน การสังสรรค์ทุกแบบเป็นทางเลือก และทุกคนกลับบ้านอย่างปลอดภัย", "跑步优先，所有社交选择均为自愿，每个人都安全回家。")}</p>
         </div>
         <div class="rule-grid">
           ${CLUB_RULES.map(
@@ -326,13 +362,13 @@ function renderShell() {
               <article class="rule-card">
                 <span>${String(index + 1).padStart(2, "0")}</span>
                 <h3>${rule.title}</h3>
-                <p>${rule.body}</p>
+                <p>${localizedRuleBody(rule.id, rule.body)}</p>
               </article>`,
           ).join("")}
         </div>
         <aside class="legal-note">
-          <strong>IMPORTANT / สำคัญ</strong>
-          <p>เว็บนี้ไม่ขายหรือโฆษณาเครื่องดื่มแอลกอฮอล์ กิจกรรมตัวอย่างต้องได้รับการตรวจด้านใบอนุญาต เวลา สถานที่ ประกัน และกฎหมายที่ใช้บังคับก่อนจัดจริง</p>
+          <strong>${tr("IMPORTANT", "สำคัญ", "重要")}</strong>
+          <p>${tr("This site does not sell or advertise alcohol. Every demo event needs current licence, venue, insurance, timing, and legal checks before launch.", "เว็บนี้ไม่ขายหรือโฆษณาแอลกอฮอล์ อีเวนต์เดโมทุกงานต้องตรวจใบอนุญาต สถานที่ ประกัน เวลา และกฎหมายปัจจุบันก่อนจัดจริง", "本网站不销售或宣传酒精。所有演示活动上线前均需核查牌照、场地、保险、时间与现行法规。")}</p>
         </aside>
       </section>
 
@@ -340,30 +376,30 @@ function renderShell() {
         <div class="passes-copy">
           <p class="eyebrow"><span></span> YOUR NEXT RUN</p>
           <h2 id="passes-title">RUN PASSES</h2>
-          <p>Guest เก็บ Run Pass ใน browser นี้ ส่วนผู้ที่ sign in จะบันทึกอย่างถาวรใน Runner Passport โดย Agent เตรียมได้ แต่คุณต้องเป็นคนยืนยันการสมัครบนหน้าจอ</p>
+          <p>${tr("Guest passes stay in this browser. Sign-in can keep them in your Passport. The agent prepares; you confirm.", "Guest เก็บ Run Pass ใน browser นี้ ส่วนผู้ที่ sign in จะเก็บไว้ใน Passport โดย Agent เป็นผู้เตรียม แต่คุณเป็นผู้ยืนยัน", "访客通行证保存在当前浏览器；登录后可存入通行证。智能体负责准备，由你确认。")}</p>
         </div>
         <div class="passes-list" id="passesList"></div>
       </section>
     </main>
 
     <footer>
-      <div class="footer-mark">R/<span>RUN SOCIAL TH</span></div>
+      <div class="footer-mark">R/<span>${BRAND.workingName}</span></div>
       <p>DEMO PLATFORM · NOT MEDICAL OR LEGAL ADVICE</p>
       <div><a href="#rules">Rules</a><a href="#webmcp">WebMCP</a><a href="#top">Back to top ↑</a></div>
     </footer>
 
     <dialog class="event-dialog" id="eventDialog" aria-labelledby="eventDialogTitle">
-      <button class="dialog-close" type="button" data-close-dialog="eventDialog" aria-label="ปิด">×</button>
+      <button class="dialog-close" type="button" data-close-dialog="eventDialog" aria-label="${tr("Close", "ปิด", "关闭")}">×</button>
       <div id="eventDialogContent"></div>
     </dialog>
 
     <dialog class="registration-dialog" id="registrationDialog" aria-labelledby="registrationTitle">
-      <button class="dialog-close" type="button" data-close-dialog="registrationDialog" aria-label="ปิด">×</button>
+      <button class="dialog-close" type="button" data-close-dialog="registrationDialog" aria-label="${tr("Close", "ปิด", "关闭")}">×</button>
       <div id="registrationContent"></div>
     </dialog>
 
     <dialog class="confirmation-dialog" id="confirmationDialog" aria-labelledby="confirmationTitle">
-      <button class="dialog-close" type="button" data-close-dialog="confirmationDialog" aria-label="ปิด">×</button>
+      <button class="dialog-close" type="button" data-close-dialog="confirmationDialog" aria-label="${tr("Close", "ปิด", "关闭")}">×</button>
       <div id="confirmationContent"></div>
     </dialog>
 
@@ -374,9 +410,9 @@ function renderShell() {
 function scheduleDateParts(date: string) {
   const value = new Date(`${date}T12:00:00+07:00`);
   return {
-    weekday: new Intl.DateTimeFormat("th-TH", { weekday: "short" }).format(value),
-    day: new Intl.DateTimeFormat("th-TH", { day: "2-digit" }).format(value),
-    month: new Intl.DateTimeFormat("th-TH", { month: "short" }).format(value),
+    weekday: new Intl.DateTimeFormat(localeTag(), { weekday: "short" }).format(value),
+    day: new Intl.DateTimeFormat(localeTag(), { day: "2-digit" }).format(value),
+    month: new Intl.DateTimeFormat(localeTag(), { month: "short" }).format(value),
   };
 }
 
@@ -384,10 +420,10 @@ function filterDescription(filters: EventFilters): string {
   const details = [
     filters.city,
     filters.distanceKm ? `${filters.distanceKm} KM` : undefined,
-    filters.pace ? PACE_LABELS[filters.pace] : undefined,
-    filters.socialPreference ? SOCIAL_LABELS[filters.socialPreference] : undefined,
+    filters.pace ? paceLabel(filters.pace) : undefined,
+    filters.socialPreference ? socialLabel(filters.socialPreference) : undefined,
   ].filter(Boolean);
-  return details.length > 0 ? details.join(" · ") : "ทุกเมือง · ทุกระยะ · เรียงตามวัน";
+  return details.length > 0 ? details.join(" · ") : tr("Every city · any distance · chronological", "ทุกเมือง · ทุกระยะ · เรียงตามวัน", "所有城市 · 不限距离 · 按日期排序");
 }
 
 function runnerInitials(value: string): string {
@@ -409,36 +445,36 @@ function renderPassport() {
   if (state.passportStatus === "error") {
     card.innerHTML = `
       <div class="passport-state passport-error">
-        <span>OFFLINE /</span><h3>เปิด Passport ไม่สำเร็จ</h3>
-        <p>ตารางแบบ guest ยังใช้งานได้ตามปกติ แล้วลองเชื่อม Runner Passport อีกครั้ง</p>
-        <button type="button" id="retryPassport">ลองอีกครั้ง ↻</button>
+        <span>OFFLINE /</span><h3>${tr("Passport did not open", "เปิด Passport ไม่สำเร็จ", "通行证无法打开")}</h3>
+        <p>${tr("Guest planning still works. Try connecting Runner Passport again.", "ตารางแบบ guest ยังใช้งานได้ตามปกติ แล้วลองเชื่อม Runner Passport อีกครั้ง", "访客规划仍可使用，请再次尝试连接跑者通行证。")}</p>
+        <button type="button" id="retryPassport">${tr("Try again", "ลองอีกครั้ง", "重试")} ↻</button>
       </div>`;
-    ledger.innerHTML = `<div class="passport-empty"><span>LOCAL MODE</span><p>แผนใหม่ยังจัดได้ แต่จะยังไม่ถูกบันทึกลงฐานข้อมูล</p></div>`;
+    ledger.innerHTML = `<div class="passport-empty"><span>LOCAL MODE</span><p>${tr("New plans work, but will not be saved to the database yet.", "แผนใหม่ยังจัดได้ แต่จะยังไม่ถูกบันทึกลงฐานข้อมูล", "仍可生成新计划，但暂不会保存至数据库。")}</p></div>`;
     document.querySelector<HTMLButtonElement>("#retryPassport")?.addEventListener("click", () => void initializePassport());
     return;
   }
 
   if (!state.session?.authenticated || !state.session.user) {
     const signIn = chatGptSignInPath("/#passport");
-    headerAccount.textContent = "Sign in";
+    headerAccount.textContent = tr("Sign in", "เข้าสู่ระบบ", "登录");
     headerAccount.href = signIn;
     headerAccount.target = "_top";
     identityMode.textContent = "GUEST";
-    saveHint.textContent = "แผนพร้อมใช้แล้ว · Sign in เมื่อต้องการให้ Agent จำ";
+    saveHint.textContent = tr("The plan works now · Sign in only to remember it", "แผนพร้อมใช้แล้ว · Sign in เมื่อต้องการให้ Agent จำ", "计划立即可用 · 仅在需要记忆时登录");
     card.innerHTML = `
       <div class="passport-cover">
         <div><span>R/</span><small>RUNNER ID / OPTIONAL</small></div>
         <strong>GUEST<br />RUNNER</strong>
-        <p>ไม่ต้องมีบัญชีก็จัดตาราง ดูรายละเอียด เช็กความพร้อม และเตรียม Run Pass ได้</p>
-        <a class="passport-signin" href="${signIn}" target="_top">SIGN IN WITH CHATGPT <span>↗</span></a>
-        <small>Sign in เฉพาะเมื่อต้องการบันทึกข้อมูลข้ามอุปกรณ์และการเปิดเว็บครั้งถัดไป</small>
+        <p>${tr("Plan, explore, check readiness, and prepare a Run Pass without an account.", "ไม่ต้องมีบัญชีก็จัดตาราง ดูรายละเอียด เช็กความพร้อม และเตรียม Run Pass ได้", "无需账户即可规划、查看、检查准备并生成跑步通行证。")}</p>
+        <a class="passport-signin" href="${signIn}" target="_top">${tr("SIGN IN WITH CHATGPT", "เข้าสู่ระบบด้วย CHATGPT", "使用 CHATGPT 登录")} <span>↗</span></a>
+        <small>${tr("Sign in only to remember your data across visits and devices.", "Sign in เฉพาะเมื่อต้องการบันทึกข้อมูลข้ามอุปกรณ์และการเปิดเว็บครั้งถัดไป", "仅在需要跨设备和跨访问保存数据时登录。")}</small>
       </div>`;
     ledger.innerHTML = `
       <div class="passport-ledger-head"><div><span>AGENT MEMORY</span><h3>WHAT GETS SAVED</h3></div><strong>03</strong></div>
       <div class="passport-memory-list">
-        <article><b>01</b><div><strong>Runner profile</strong><p>เมือง เพซ และเป้าหมายรายสัปดาห์</p></div></article>
-        <article><b>02</b><div><strong>Saved run weeks</strong><p>ตารางที่ Agent จัดและตัวกรองที่ใช้</p></div></article>
-        <article><b>03</b><div><strong>Run Passes</strong><p>รายการที่คุณตรวจและกดยืนยันเองแล้ว</p></div></article>
+        <article><b>01</b><div><strong>Runner profile</strong><p>${tr("City, pace, and weekly goal", "เมือง เพซ และเป้าหมายรายสัปดาห์", "城市、配速与每周目标")}</p></div></article>
+        <article><b>02</b><div><strong>Saved run weeks</strong><p>${tr("Agent-built schedules and filters", "ตารางที่ Agent จัดและตัวกรองที่ใช้", "智能体生成的计划与筛选条件")}</p></div></article>
+        <article><b>03</b><div><strong>Run Passes</strong><p>${tr("Passes you reviewed and confirmed", "รายการที่คุณตรวจและกดยืนยันเองแล้ว", "由你检查并确认的通行证")}</p></div></article>
       </div>`;
     return;
   }
@@ -453,34 +489,38 @@ function renderPassport() {
   headerAccount.textContent = runnerInitials(displayName);
   headerAccount.href = "#passport";
   headerAccount.removeAttribute("target");
-  identityMode.textContent = "MEMORY ON";
-  saveHint.textContent = `${savedPlans.length} saved week${savedPlans.length === 1 ? "" : "s"} · Agent memory is on`;
+  identityMode.textContent = tr("MEMORY ON", "เปิดความจำ", "记忆已开启");
+  saveHint.textContent = tr(
+    `${savedPlans.length} saved week${savedPlans.length === 1 ? "" : "s"} · Agent memory is on`,
+    `บันทึกแล้ว ${savedPlans.length} สัปดาห์ · เปิดความจำของ Agent`,
+    `已保存 ${savedPlans.length} 周 · 智能体记忆已开启`,
+  );
 
   card.innerHTML = `
     <div class="passport-id-row"><span class="passport-avatar">${escapeHtml(runnerInitials(displayName))}</span><div><small>RUNNER PASSPORT / ACTIVE</small><h3>${escapeHtml(displayName)}</h3><p>${escapeHtml(user.email)}</p></div><i>DB<br />LIVE</i></div>
     <div class="passport-stamps" aria-label="Runner profile summary">
       <div><small>HOME</small><strong>${escapeHtml(profile?.homeCity ?? "OPEN")}</strong><span>01 / CITY</span></div>
-      <div><small>PACE</small><strong>${profile?.preferredPace ? escapeHtml(PACE_LABELS[profile.preferredPace]) : "OPEN"}</strong><span>02 / BAND</span></div>
+      <div><small>PACE</small><strong>${profile?.preferredPace ? escapeHtml(paceLabel(profile.preferredPace)) : "OPEN"}</strong><span>02 / BAND</span></div>
       <div><small>GOAL</small><strong>${profile?.weeklyGoalKm ?? 10} KM</strong><span>03 / WEEK</span></div>
     </div>
     <form class="passport-form" id="passportProfileForm">
-      <label><span>ชื่อบน Passport</span><input name="displayName" maxlength="80" value="${escapeHtml(displayName)}" required /></label>
-      <label><span>เมืองหลัก</span><select name="homeCity"><option value="">ยังไม่เลือก</option>${["Bangkok", "Chiang Mai", "Phuket", "Khon Kaen"].map((city) => `<option${profile?.homeCity === city ? " selected" : ""}>${city}</option>`).join("")}</select></label>
-      <label><span>เพซที่ชอบ</span><select name="preferredPace"><option value="">ยังไม่เลือก</option>${(["social", "steady", "tempo"] as PaceBand[]).map((pace) => `<option value="${pace}"${profile?.preferredPace === pace ? " selected" : ""}>${PACE_LABELS[pace]}</option>`).join("")}</select></label>
-      <label><span>เป้าหมาย / สัปดาห์</span><input name="weeklyGoalKm" type="number" min="1" max="100" value="${profile?.weeklyGoalKm ?? 10}" required /></label>
-      <button type="submit">UPDATE PASSPORT <span>→</span></button>
+      <label><span>${tr("Passport name", "ชื่อบน Passport", "通行证姓名")}</span><input name="displayName" maxlength="80" value="${escapeHtml(displayName)}" required /></label>
+      <label><span>${tr("Home city", "เมืองหลัก", "常驻城市")}</span><select name="homeCity"><option value="">${tr("Not selected", "ยังไม่เลือก", "未选择")}</option>${["Bangkok", "Chiang Mai", "Phuket", "Khon Kaen"].map((city) => `<option${profile?.homeCity === city ? " selected" : ""}>${city}</option>`).join("")}</select></label>
+      <label><span>${tr("Preferred pace", "เพซที่ชอบ", "偏好配速")}</span><select name="preferredPace"><option value="">${tr("Not selected", "ยังไม่เลือก", "未选择")}</option>${(["social", "steady", "tempo"] as PaceBand[]).map((pace) => `<option value="${pace}"${profile?.preferredPace === pace ? " selected" : ""}>${paceLabel(pace)}</option>`).join("")}</select></label>
+      <label><span>${tr("Weekly goal", "เป้าหมาย / สัปดาห์", "每周目标")}</span><input name="weeklyGoalKm" type="number" min="1" max="100" value="${profile?.weeklyGoalKm ?? 10}" required /></label>
+      <button type="submit">${tr("UPDATE PASSPORT", "อัปเดต PASSPORT", "更新通行证")} <span>→</span></button>
     </form>
     <a class="passport-signout" href="${chatGptSignOutPath("/")}" target="_top">Sign out</a>`;
 
   ledger.innerHTML = `
     <div class="passport-ledger-head"><div><span>AGENT MEMORY</span><h3>SAVED RUN WEEKS</h3></div><strong>${String(savedPlans.length).padStart(2, "0")}</strong></div>
-    <div class="passport-scoreline"><span><b>${savedPlans.length}</b> weeks</span><span><b>${activePasses}</b> active passes</span><span><b>${profile?.weeklyGoalKm ?? 10}</b> km goal</span></div>
+    <div class="passport-scoreline"><span><b>${savedPlans.length}</b> ${tr("weeks", "สัปดาห์", "周")}</span><span><b>${activePasses}</b> ${tr("active passes", "พาสที่ใช้งาน", "张有效通行证")}</span><span><b>${profile?.weeklyGoalKm ?? 10}</b> ${tr("km goal", "กม. เป้าหมาย", "公里目标")}</span></div>
     <div class="saved-week-list">
       ${savedPlans.length === 0
-        ? `<div class="passport-empty"><span>NO SAVED WEEK</span><p>จัดตารางด้านบน แล้วกด SAVE TO PASSPORT เพื่อเริ่มความจำของ Agent</p></div>`
+        ? `<div class="passport-empty"><span>NO SAVED WEEK</span><p>${tr("Build a week above, then save it to begin Agent memory.", "จัดตารางด้านบน แล้วกดบันทึกเพื่อเริ่มความจำของ Agent", "在上方生成一周计划，再保存以开启智能体记忆。")}</p></div>`
         : savedPlans.map((plan, index) => `
           <article class="saved-week-ticket">
-            <div><span>W${String(savedPlans.length - index).padStart(2, "0")}</span><small>${new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(plan.createdAt))}</small></div>
+            <div><span>W${String(savedPlans.length - index).padStart(2, "0")}</span><small>${new Intl.DateTimeFormat(localeTag(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(plan.createdAt))}</small></div>
             <section><strong>${plan.eventIds.length} RUNS · ${plan.totalDistanceKm} KM</strong><p>${escapeHtml(filterDescription(plan.filters))}</p></section>
             <button type="button" data-resume-plan="${escapeHtml(plan.id)}">LOAD ↗</button>
           </article>`).join("")}
@@ -504,9 +544,9 @@ function renderPassport() {
       if (state.session) state.session.profile = updated;
       renderPassport();
       addActivity({ source: "human", title: "Runner Passport updated", detail: `${updated.weeklyGoalKm} KM weekly goal` });
-      showToast("บันทึก Runner Passport แล้ว");
+      showToast(tr("Runner Passport saved", "บันทึก Runner Passport แล้ว", "跑者通行证已保存"));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "บันทึก Passport ไม่สำเร็จ", true);
+      showToast(error instanceof Error ? error.message : tr("Passport could not be saved", "บันทึก Passport ไม่สำเร็จ", "通行证无法保存"), true);
     } finally {
       button?.removeAttribute("aria-busy");
       if (button) button.disabled = false;
@@ -522,7 +562,7 @@ function renderPassport() {
       if (plan.filters.distanceKm) input.distance_km = plan.filters.distanceKm;
       if (plan.filters.pace) input.pace = plan.filters.pace;
       if (plan.filters.socialPreference) input.social_preference = plan.filters.socialPreference;
-      void executeSchedulePlan(input, `“เปิดตารางที่บันทึกไว้: ${filterDescription(plan.filters)}”`);
+      void executeSchedulePlan(input, `“${tr("Open saved week", "เปิดตารางที่บันทึกไว้", "打开已保存计划")}: ${filterDescription(plan.filters)}”`);
       document.querySelector("#runner-agent")?.scrollIntoView({ behavior: "smooth" });
     });
   });
@@ -583,18 +623,21 @@ function renderAgentSchedule(filters: EventFilters) {
   renderEvents();
 
   summary.innerHTML = `
-    <div><span>AGENT PLAN</span><strong>${plan.count} run${plan.count === 1 ? "" : "s"} matched</strong></div>
-    <p>${escapeHtml(filterDescription(filters))} · รวม ${plan.totalDistanceKm} KM</p>`;
+    <div><span>AGENT PLAN</span><strong>${tr(`${plan.count} run${plan.count === 1 ? "" : "s"} matched`, `ตรงเงื่อนไข ${plan.count} งาน`, `匹配 ${plan.count} 条路线`)}</strong></div>
+    <p>${escapeHtml(filterDescription(filters))} · ${tr(`${plan.totalDistanceKm} KM total`, `รวม ${plan.totalDistanceKm} KM`, `共 ${plan.totalDistanceKm} 公里`)}</p>`;
 
   if (plan.events.length === 0) {
     board.innerHTML = `
       <div class="agent-schedule-empty">
-        <strong>ยังไม่มี run ที่ตรงทุกข้อ</strong>
-        <p>ลดเงื่อนไขหนึ่งอย่างแล้วให้ Runner Agent จัดตารางใหม่</p>
-        <button type="button" data-agent-action="plan-week">เปิดตารางทั้งหมด</button>
+        <strong>${tr("No run matches every choice yet", "ยังไม่มี run ที่ตรงทุกข้อ", "暂无完全匹配的路线")}</strong>
+        <p>${tr("Remove one filter and let Runner Agent rebuild the week.", "ลดเงื่อนไขหนึ่งอย่างแล้วให้ Runner Agent จัดตารางใหม่", "减少一个筛选条件，让跑步智能体重新生成。")}</p>
+        <button type="button" data-agent-action="plan-week">${tr("Show every run", "เปิดตารางทั้งหมด", "显示所有路线")}</button>
       </div>`;
   } else {
-    board.innerHTML = plan.events.map((event, index) => {
+    board.innerHTML = plan.events.map((sourceEvent, index) => {
+      const completeEvent = findEvent(sourceEvent.id);
+      if (!completeEvent) return "";
+      const event = localizedEvent(completeEvent);
       const date = scheduleDateParts(event.date);
       return `
         <article class="agent-schedule-row ${index === 0 ? "is-next" : ""}">
@@ -602,10 +645,10 @@ function renderAgentSchedule(filters: EventFilters) {
           <div class="agent-schedule-main">
             <span>${index === 0 ? "NEXT MATCH" : `OPTION ${String(index + 1).padStart(2, "0")}`}</span>
             <strong>${escapeHtml(event.city)} · ${escapeHtml(event.neighborhood)}</strong>
-            <p>${event.distanceKm} KM · ${event.paceBands.map((pace) => PACE_LABELS[pace]).join(" / ")}</p>
+            <p>${event.distanceKm} KM · ${event.paceBands.map((pace) => paceLabel(pace)).join(" / ")}</p>
           </div>
-          <div class="agent-schedule-meta"><strong>${event.startTime}</strong><small>${event.spotsLeft} spots</small></div>
-          <button type="button" data-schedule-open="${event.id}" aria-label="เปิดรายละเอียด ${escapeHtml(event.city)} ${event.distanceKm} กิโลเมตร">↗</button>
+          <div class="agent-schedule-meta"><strong>${event.startTime}</strong><small>${tr(`${event.spotsLeft} spots`, `เหลือ ${event.spotsLeft} ที่`, `剩余 ${event.spotsLeft} 个名额`)}</small></div>
+          <button type="button" data-schedule-open="${event.id}" aria-label="${tr(`Open ${event.city} ${event.distanceKm} kilometre details`, `เปิดรายละเอียด ${event.city} ${event.distanceKm} กิโลเมตร`, `打开 ${event.city} ${event.distanceKm} 公里详情`)}">↗</button>
         </article>`;
     }).join("");
   }
@@ -629,22 +672,24 @@ function renderRunnerSupportLoop(loop: RunnerSupportLoop) {
       ? "STORE CONNECTION NEEDS FIXING"
       : "CONNECTOR READY · STORE REQUIRED";
   const merchantControls = loop.unresolvedNeeds.length === 0
-    ? `<p>แผนนี้ไม่มีของที่ต้องค้นหาเพิ่ม ใช้ Runner Commons ต่อได้โดยไม่ต้องเปิดร้านค้า</p>`
+    ? `<p>${tr("Nothing else needs searching. Continue with Runner Commons without opening a store.", "แผนนี้ไม่มีของที่ต้องค้นหาเพิ่ม ใช้ Runner Commons ต่อได้โดยไม่ต้องเปิดร้านค้า", "无需再搜索物品，可继续使用跑者共享，无需打开商店。")}</p>`
     : status?.configured
       ? `<form class="merchant-search-form" id="merchantSearchForm">
-          <label><span>ของที่ยังขาด</span><select name="need">${loop.unresolvedNeeds.map((need) => `<option value="${need.key}">${escapeHtml(need.label)}</option>`).join("")}</select></label>
-          <button type="submit">ค้นหาแค็ตตาล็อกจริง <b>↗</b></button>
+          <label><span>${tr("Remaining need", "ของที่ยังขาด", "仍需物品")}</span><select name="need">${loop.unresolvedNeeds.map((need) => `<option value="${need.key}">${escapeHtml(localizeDomainText(need.label))}</option>`).join("")}</select></label>
+          <button type="submit">${tr("Search the live catalogue", "ค้นหาแค็ตตาล็อกจริง", "搜索实时目录")} <b>↗</b></button>
         </form>`
-      : `<p>ตัวเชื่อมต่อทำงานแล้ว แต่ยังไม่ผูกร้านพันธมิตร จึงยังไม่ส่งคำค้นไปยังร้านภายนอก</p>`;
+      : `<p>${tr("The connector is ready, but no partner store is attached, so no query leaves this site.", "ตัวเชื่อมต่อทำงานแล้ว แต่ยังไม่ผูกร้านพันธมิตร จึงยังไม่ส่งคำค้นไปยังร้านภายนอก", "连接器已就绪，但尚未绑定合作商店，因此不会向外部商店发送查询。")}</p>`;
+  const supportEvent = localizedEvent(findEvent(loop.eventId)!);
+  const eventLabel = `${supportEvent.city} · ${supportEvent.neighborhood} · ${supportEvent.distanceKm} KM`;
   panel.hidden = false;
   panel.innerHTML = `
-    <div class="support-loop-head"><div><span>RUNNER COMMONS / SHOP LAST</span><strong>${escapeHtml(loop.eventLabel)}</strong></div><b>↺</b></div>
+    <div class="support-loop-head"><div><span>RUNNER COMMONS / SHOP LAST</span><strong>${escapeHtml(eventLabel)}</strong></div><b>↺</b></div>
     <div class="support-loop-grid">
       ${loop.steps.map((step, index) => `
-        <article><small>0${index + 1} / ${step.mode.toUpperCase()}</small><strong>${escapeHtml(step.title)}</strong><p>${escapeHtml(step.action)}</p><em>${escapeHtml(step.reason)}</em></article>`).join("")}
+        <article><small>0${index + 1} / ${step.mode.toUpperCase()}</small><strong>${escapeHtml(localizeDomainText(step.title))}</strong><p>${escapeHtml(localizeDomainText(step.action))}</p><em>${escapeHtml(localizeDomainText(step.reason))}</em></article>`).join("")}
     </div>
-    <div class="support-loop-giveback"><span>GIVE BACK</span><p>${escapeHtml(loop.giveBack)}</p></div>
-    <div class="support-loop-handoff"><span>NEXT CONNECTOR / HUMAN FIRST</span><p>${escapeHtml(loop.merchantHandoff.rule)}</p></div>
+    <div class="support-loop-giveback"><span>GIVE BACK</span><p>${escapeHtml(localizeDomainText(loop.giveBack))}</p></div>
+    <div class="support-loop-handoff"><span>NEXT CONNECTOR / HUMAN FIRST</span><p>${escapeHtml(localizeDomainText(loop.merchantHandoff.rule))}</p></div>
     <section class="merchant-connector" aria-labelledby="merchantConnectorTitle">
       <div><span id="merchantConnectorTitle">${escapeHtml(statusLabel)}</span><strong>NEED, NOT MERCH.</strong></div>
       ${merchantControls}
@@ -654,9 +699,9 @@ function renderRunnerSupportLoop(loop: RunnerSupportLoop) {
 }
 
 function formatMerchantPrice(price: CommerceSearchResult["products"][number]["price"]): string {
-  if (!price) return "ดูราคาที่ร้าน";
+  if (!price) return tr("Check price at store", "ดูราคาที่ร้าน", "到商店查看价格");
   try {
-    return new Intl.NumberFormat("th-TH", {
+    return new Intl.NumberFormat(localeTag(), {
       style: "currency",
       currency: price.currency,
     }).format(price.amountMinor / 100);
@@ -673,12 +718,12 @@ function renderMerchantSearchResult(result: CommerceSearchResult) {
         <article class="merchant-result-card">
           <small>${product.available === false ? "UNAVAILABLE" : "MERCHANT RESULT"}</small>
           <strong>${escapeHtml(product.title)}</strong>
-          <p>${escapeHtml(product.description || "ตรวจรายละเอียด เงื่อนไข และความเหมาะสมกับร้านโดยตรง")}</p>
-          <div><b>${escapeHtml(formatMerchantPrice(product.price))}</b>${product.url ? `<a href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">ตรวจที่ร้าน ↗</a>` : ""}</div>
+          <p>${escapeHtml(product.description || tr("Review details, terms, and fit directly with the store.", "ตรวจรายละเอียด เงื่อนไข และความเหมาะสมกับร้านโดยตรง", "请直接向商店核对详情、条款与适用性。"))}</p>
+          <div><b>${escapeHtml(formatMerchantPrice(product.price))}</b>${product.url ? `<a href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">${tr("Review at store", "ตรวจที่ร้าน", "到商店查看")} ↗</a>` : ""}</div>
         </article>`).join("")
-    : `<div class="merchant-empty"><strong>ร้านนี้ยังไม่มีผลลัพธ์ที่ตรง</strong><p>กลับไปใช้ ยืม เติม หรือซ่อม โดยไม่สร้างตะกร้า</p></div>`;
+    : `<div class="merchant-empty"><strong>${tr("No matching result yet", "ร้านนี้ยังไม่มีผลลัพธ์ที่ตรง", "暂无匹配结果")}</strong><p>${tr("Return to use, borrow, refill, or repair without creating a cart.", "กลับไปใช้ ยืม เติม หรือซ่อม โดยไม่สร้างตะกร้า", "返回使用、借用、补充或维修，不创建购物车。")}</p></div>`;
   target.innerHTML = `
-    <div class="merchant-result-head"><span>LIVE EXTERNAL RESULTS</span><strong>${escapeHtml(result.needLabel)}</strong><p>${result.products.length} รายการ · ยังไม่มี cart หรือ checkout</p></div>
+    <div class="merchant-result-head"><span>LIVE EXTERNAL RESULTS</span><strong>${escapeHtml(localizeDomainText(result.needLabel))}</strong><p>${tr(`${result.products.length} results · no cart or checkout`, `${result.products.length} รายการ · ยังไม่มี cart หรือ checkout`, `${result.products.length} 个结果 · 不创建购物车或结账`)}</p></div>
     <div class="merchant-result-grid">${products}</div>`;
 }
 
@@ -687,15 +732,15 @@ async function searchRunnerNeed(eventId: string, need: CommerceNeed): Promise<Co
     renderRunnerSupportLoop(buildRunnerSupportLoop(eventId));
   }
   const target = document.querySelector<HTMLDivElement>("#merchantSearchResults");
-  if (target) target.innerHTML = `<div class="merchant-loading"><span></span><p>กำลังถาม Shopify Storefront MCP…</p></div>`;
+  if (target) target.innerHTML = `<div class="merchant-loading"><span></span><p>${tr("Asking Shopify Storefront MCP…", "กำลังถาม Shopify Storefront MCP…", "正在查询 Shopify Storefront MCP…")}</p></div>`;
   try {
     const result = await searchCommerceCatalog({ eventId, need });
     renderMerchantSearchResult(result);
     return result;
   } catch (error) {
     if (target) {
-      const message = error instanceof Error ? error.message : "ค้นหาแค็ตตาล็อกไม่สำเร็จ";
-      target.innerHTML = `<div class="merchant-empty is-error"><strong>ยังค้นหาของจริงไม่ได้</strong><p>${escapeHtml(message)}</p></div>`;
+      const message = error instanceof Error ? error.message : tr("Catalogue search failed", "ค้นหาแค็ตตาล็อกไม่สำเร็จ", "目录搜索失败");
+      target.innerHTML = `<div class="merchant-empty is-error"><strong>${tr("Live search is unavailable", "ยังค้นหาของจริงไม่ได้", "实时搜索不可用")}</strong><p>${escapeHtml(message)}</p></div>`;
     }
     throw error;
   }
@@ -709,8 +754,8 @@ function bindMerchantSearch(loop: RunnerSupportLoop) {
     const button = form.querySelector<HTMLButtonElement>("button[type='submit']");
     if (button) button.disabled = true;
     void searchRunnerNeed(loop.eventId, need)
-      .then((result) => showToast(`พบ ${result.products.length} รายการให้คุณตรวจเอง`))
-      .catch((error) => showToast(error instanceof Error ? error.message : "ค้นหาไม่สำเร็จ", true))
+      .then((result) => showToast(tr(`Found ${result.products.length} results for you to review`, `พบ ${result.products.length} รายการให้คุณตรวจเอง`, `找到 ${result.products.length} 个结果供你查看`)))
+      .catch((error) => showToast(error instanceof Error ? error.message : tr("Search failed", "ค้นหาไม่สำเร็จ", "搜索失败"), true))
       .finally(() => { if (button) button.disabled = false; });
   });
 }
@@ -734,15 +779,17 @@ function renderEvents() {
   if (matches.length === 0) {
     grid.innerHTML = `
       <div class="empty-state">
-        <span>0/</span><h3>ยังไม่เจอ run ที่ตรงทุกข้อ</h3>
-        <p>ลองลดตัวกรองหนึ่งอย่าง หรือให้ agent ช่วยหาตัวเลือกที่ใกล้เคียง</p>
-        <button class="button button-dark" type="button" id="emptyReset">ดูทั้งหมด</button>
+        <span>0/</span><h3>${tr("No exact run yet", "ยังไม่เจอ run ที่ตรงทุกข้อ", "暂无完全匹配的路线")}</h3>
+        <p>${tr("Remove one filter or let the agent find the nearest choice.", "ลองลดตัวกรองหนึ่งอย่าง หรือให้ agent ช่วยหาตัวเลือกที่ใกล้เคียง", "减少一个筛选条件，或让智能体寻找最接近的选择。")}</p>
+        <button class="button button-dark" type="button" id="emptyReset">${tr("Show all", "ดูทั้งหมด", "显示全部")}</button>
       </div>`;
     document.querySelector<HTMLButtonElement>("#emptyReset")?.addEventListener("click", resetFilters);
     return;
   }
 
-  grid.innerHTML = matches.map(({ event }, index) => `
+  grid.innerHTML = matches.map(({ event: sourceEvent }, index) => {
+    const event = localizedEvent(sourceEvent);
+    return `
     <article class="event-card accent-${event.accent}" data-event-id="${event.id}">
       <div class="event-card-top">
         <span>${event.city.toUpperCase()} / ${event.neighborhood}</span>
@@ -750,17 +797,18 @@ function renderEvents() {
       </div>
       <div class="event-map">${routeGraphic(event.id)}</div>
       <div class="event-main-fact"><strong>${event.distanceKm}</strong><span>KM<br />${escapeHtml(event.routeLabel.toUpperCase())}</span></div>
-      <div class="event-date"><strong>${formatDate(event.date)}</strong><span>${event.startTime} น.</span></div>
+      <div class="event-date"><strong>${formatDate(event.date)}</strong><span>${event.startTime}</span></div>
       <div class="event-tags">
-        ${event.paceBands.map((pace) => `<span>${PACE_LABELS[pace]}</span>`).join("")}
+        ${event.paceBands.map((pace) => `<span>${paceLabel(pace)}</span>`).join("")}
         <span>${eventSocialLine(event.social)}</span>
       </div>
       <div class="event-card-bottom">
         <div><small>FROM</small><strong>฿${event.priceThb}</strong></div>
         <div><small>LEFT</small><strong>${event.spotsLeft}</strong></div>
-        <button type="button" data-open-event="${event.id}" aria-label="ดูรายละเอียด ${event.city} ${event.distanceKm} กิโลเมตร">DETAILS <span>↗</span></button>
+        <button type="button" data-open-event="${event.id}" aria-label="${tr(`Open ${event.city} ${event.distanceKm} kilometre details`, `ดูรายละเอียด ${event.city} ${event.distanceKm} กิโลเมตร`, `打开 ${event.city} ${event.distanceKm} 公里详情`)}">${tr("DETAILS", "รายละเอียด", "详情")} <span>↗</span></button>
       </div>
-    </article>`).join("");
+    </article>`;
+  }).join("");
 
   grid.querySelectorAll<HTMLButtonElement>("[data-open-event]").forEach((button) => {
     button.addEventListener("click", () => openEvent(button.dataset.openEvent ?? "", "human"));
@@ -774,7 +822,7 @@ function renderActivity() {
     <article class="activity-item source-${entry.source}">
       <span>${entry.source === "agent" ? "✦" : entry.source === "human" ? "↗" : "•"}</span>
       <div><strong>${escapeHtml(entry.title)}</strong><p>${escapeHtml(entry.detail)}</p></div>
-      <time>${new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit" }).format(new Date(entry.time))}</time>
+      <time>${new Intl.DateTimeFormat(localeTag(), { hour: "2-digit", minute: "2-digit" }).format(new Date(entry.time))}</time>
     </article>`).join("");
 }
 
@@ -788,16 +836,17 @@ function addActivity(entry: Omit<ActivityEntry, "id" | "time">) {
 }
 
 function openEvent(eventId: string, source: "human" | "agent") {
-  const event = findEvent(eventId);
+  const sourceEvent = findEvent(eventId);
   const dialog = document.querySelector<HTMLDialogElement>("#eventDialog");
   const content = document.querySelector<HTMLDivElement>("#eventDialogContent");
-  if (!event || !dialog || !content) return;
+  if (!sourceEvent || !dialog || !content) return;
+  const event = localizedEvent(sourceEvent);
   state.selectedEventId = eventId;
 
   content.innerHTML = `
     <div class="dialog-kicker">${event.city.toUpperCase()} · ${event.neighborhood}</div>
     <div class="dialog-hero accent-${event.accent}">
-      <div><p>${formatDate(event.date)} · ${event.startTime} น.</p><h2 id="eventDialogTitle">${event.distanceKm} KM<br /><em>${escapeHtml(event.routeLabel)}</em></h2></div>
+      <div><p>${formatDate(event.date)} · ${event.startTime}</p><h2 id="eventDialogTitle">${event.distanceKm} KM<br /><em>${escapeHtml(event.routeLabel)}</em></h2></div>
       <div class="dialog-route">${routeGraphic(event.id)}</div>
     </div>
     <div class="dialog-grid">
@@ -807,13 +856,13 @@ function openEvent(eventId: string, source: "human" | "agent") {
       <section><small>GET HOME</small><strong>${event.transit}</strong></section>
     </div>
     <div class="dialog-options">
-      <div><small>PACE GROUPS</small>${event.paceBands.map((pace) => `<span>${PACE_LABELS[pace]}</span>`).join("")}</div>
-      <div><small>SOCIAL OPTIONS</small>${event.social.map((option) => `<span>${SOCIAL_LABELS[option]}</span>`).join("")}</div>
+      <div><small>PACE GROUPS</small>${event.paceBands.map((pace) => `<span>${paceLabel(pace)}</span>`).join("")}</div>
+      <div><small>SOCIAL OPTIONS</small>${event.social.map((option) => `<span>${socialLabel(option)}</span>`).join("")}</div>
     </div>
-    <div class="dialog-notice"><strong>CHOICE POLICY</strong><p>เบียร์ไม่รวมในค่าสมัครและไม่จำเป็นต่อการเข้าร่วม ผู้เลือกแอลกอฮอล์ต้องอายุ 20+ และใช้บริการแยกกับสถานที่ที่มีใบอนุญาต</p></div>
+    <div class="dialog-notice"><strong>CHOICE POLICY</strong><p>${tr("Beer is never bundled with entry and is not required. Alcohol is 20+ only and served separately by a licensed venue.", "เบียร์ไม่รวมในค่าสมัครและไม่จำเป็นต่อการเข้าร่วม ผู้เลือกแอลกอฮอล์ต้องอายุ 20+ และใช้บริการแยกกับสถานที่ที่มีใบอนุญาต", "啤酒不包含在报名费内，也不是参加条件。酒精仅限20岁以上，并由持牌场所独立提供。")}</p></div>
     <div class="dialog-footer">
       <div><small>${event.spotsLeft} / ${event.capacity} spots left</small><strong>฿${event.priceThb}</strong></div>
-      <button class="button button-primary" type="button" data-register-event="${event.id}">เตรียมสมัคร <span>→</span></button>
+      <button class="button button-primary" type="button" data-register-event="${event.id}">${tr("Prepare Run Pass", "เตรียม Run Pass", "准备跑步通行证")} <span>→</span></button>
     </div>`;
 
   content.querySelector<HTMLButtonElement>("[data-register-event]")?.addEventListener("click", () => {
@@ -827,46 +876,47 @@ function openEvent(eventId: string, source: "human" | "agent") {
 }
 
 function openRegistration(eventId: string) {
-  const event = findEvent(eventId);
+  const sourceEvent = findEvent(eventId);
   const dialog = document.querySelector<HTMLDialogElement>("#registrationDialog");
   const content = document.querySelector<HTMLDivElement>("#registrationContent");
-  if (!event || !dialog || !content) return;
+  if (!sourceEvent || !dialog || !content) return;
+  const event = localizedEvent(sourceEvent);
 
   const savedName = state.passport?.profile?.displayName ?? state.session?.user?.displayName ?? "";
   const savedEmail = state.passport?.profile?.email ?? state.session?.user?.email ?? "";
   const storageConsent = state.session?.authenticated
-    ? "ฉันยินยอมให้บันทึกข้อมูลนี้ใน Runner Passport เพื่อจัดกิจกรรม *"
-    : "ฉันยินยอมให้เก็บข้อมูลนี้ใน browser นี้เพื่อสร้าง Run Pass เดโม *";
+    ? tr("I consent to save this data in Runner Passport for event coordination *", "ฉันยินยอมให้บันทึกข้อมูลนี้ใน Runner Passport เพื่อจัดกิจกรรม *", "我同意将这些数据保存至跑者通行证，用于活动协调 *")
+    : tr("I consent to store this data in this browser for a demo Run Pass *", "ฉันยินยอมให้เก็บข้อมูลนี้ใน browser นี้เพื่อสร้าง Run Pass เดโม *", "我同意将这些数据保存在此浏览器，用于生成演示通行证 *");
   content.innerHTML = `
     <div class="form-heading">
       <p class="dialog-kicker">HUMAN CONFIRMATION FLOW</p>
-      <h2 id="registrationTitle">เตรียม Run Pass</h2>
+      <h2 id="registrationTitle">${tr("Prepare Run Pass", "เตรียม Run Pass", "准备跑步通行证")}</h2>
       <p>${event.city} · ${event.distanceKm} KM · ${formatDate(event.date)}</p>
     </div>
     <form id="registrationForm" class="registration-form" novalidate>
       <input type="hidden" name="eventId" value="${event.id}" />
       <div class="form-row">
-        <label><span>ชื่อผู้วิ่ง *</span><input name="runnerName" autocomplete="name" maxlength="80" value="${escapeHtml(savedName)}" required /></label>
-        <label><span>อีเมล *</span><input name="email" type="email" autocomplete="email" maxlength="120" value="${escapeHtml(savedEmail)}" required /></label>
+        <label><span>${tr("Runner name", "ชื่อผู้วิ่ง", "跑者姓名")} *</span><input name="runnerName" autocomplete="name" maxlength="80" value="${escapeHtml(savedName)}" required /></label>
+        <label><span>${tr("Email", "อีเมล", "电子邮箱")} *</span><input name="email" type="email" autocomplete="email" maxlength="120" value="${escapeHtml(savedEmail)}" required /></label>
       </div>
-      <label><span>เบอร์ติดต่อฉุกเฉิน *</span><input name="emergencyContact" inputmode="tel" autocomplete="tel" maxlength="40" required /></label>
+      <label><span>${tr("Emergency contact", "เบอร์ติดต่อฉุกเฉิน", "紧急联系人")} *</span><input name="emergencyContact" inputmode="tel" autocomplete="tel" maxlength="40" required /></label>
       <div class="form-row">
-        <label><span>กลุ่มเพซ *</span><select name="pace" required>${event.paceBands.map((pace) => `<option value="${pace}">${PACE_LABELS[pace]}</option>`).join("")}</select></label>
-        <label><span>หลังวิ่ง *</span><select name="socialPreference" id="socialPreference" required>${event.social.map((option) => `<option value="${option}">${SOCIAL_LABELS[option]}</option>`).join("")}</select></label>
+        <label><span>${tr("Pace group", "กลุ่มเพซ", "配速组")} *</span><select name="pace" required>${event.paceBands.map((pace) => `<option value="${pace}">${paceLabel(pace)}</option>`).join("")}</select></label>
+        <label><span>${tr("After the run", "หลังวิ่ง", "跑后")} *</span><select name="socialPreference" id="socialPreference" required>${event.social.map((option) => `<option value="${option}">${socialLabel(option)}</option>`).join("")}</select></label>
       </div>
       <fieldset>
-        <legend>แผนเดินทางกลับ *</legend>
-        <label class="choice"><input type="radio" name="transportMode" value="transit" checked /><span>ขนส่งสาธารณะ</span></label>
-        <label class="choice"><input type="radio" name="transportMode" value="taxi" /><span>แท็กซี่ / ride-hailing</span></label>
-        <label class="choice"><input type="radio" name="transportMode" value="walk" /><span>เดินกลับ</span></label>
-        <label class="choice"><input type="radio" name="transportMode" value="sober_driver" /><span>คนขับที่ไม่ดื่ม</span></label>
+        <legend>${tr("Return plan", "แผนเดินทางกลับ", "返程计划")} *</legend>
+        <label class="choice"><input type="radio" name="transportMode" value="transit" checked /><span>${tr("Public transport", "ขนส่งสาธารณะ", "公共交通")}</span></label>
+        <label class="choice"><input type="radio" name="transportMode" value="taxi" /><span>${tr("Taxi / ride-hailing", "แท็กซี่ / ride-hailing", "出租车 / 网约车")}</span></label>
+        <label class="choice"><input type="radio" name="transportMode" value="walk" /><span>${tr("Walk", "เดินกลับ", "步行")}</span></label>
+        <label class="choice"><input type="radio" name="transportMode" value="sober_driver" /><span>${tr("Sober driver", "คนขับที่ไม่ดื่ม", "未饮酒司机")}</span></label>
       </fieldset>
-      <label class="check age-check" id="ageCheck"><input type="checkbox" name="age20Plus" /><span>ฉันยืนยันว่ามีอายุ 20 ปีขึ้นไปสำหรับตัวเลือกแอลกอฮอล์ และเข้าใจว่าสถานที่จะตรวจบัตร</span></label>
-      <label class="check"><input type="checkbox" name="rulesAccepted" required /><span>ฉันอ่านและยอมรับ Club Code รวมถึง RUN FIRST และ NO DRINK & DRIVE *</span></label>
+      <label class="check age-check" id="ageCheck"><input type="checkbox" name="age20Plus" /><span>${tr("I am 20+ for the alcohol option and understand the venue will check ID.", "ฉันยืนยันว่ามีอายุ 20 ปีขึ้นไปสำหรับตัวเลือกแอลกอฮอล์ และเข้าใจว่าสถานที่จะตรวจบัตร", "我已满20岁并选择酒精选项，且理解场所会查验身份证件。")}</span></label>
+      <label class="check"><input type="checkbox" name="rulesAccepted" required /><span>${tr("I have read and accept the Club Code, including RUN FIRST and NO DRINK & DRIVE *", "ฉันอ่านและยอมรับ Club Code รวมถึง RUN FIRST และ NO DRINK & DRIVE *", "我已阅读并接受跑团守则，包括先跑步与酒后不开车 *")}</span></label>
       <label class="check"><input type="checkbox" name="privacyAccepted" required /><span>${storageConsent}</span></label>
       <div class="form-errors" id="formErrors" role="alert"></div>
-      <button class="button button-dark button-full" type="submit">ตรวจข้อมูลและไปหน้ายืนยัน <span>→</span></button>
-      <p class="form-footnote">การกดปุ่มนี้ยังไม่สมัคร ระบบจะเปิดสรุปให้คุณยืนยันอีกครั้ง</p>
+      <button class="button button-dark button-full" type="submit">${tr("Review before confirmation", "ตรวจข้อมูลและไปหน้ายืนยัน", "检查后进入确认")} <span>→</span></button>
+      <p class="form-footnote">${tr("This does not register you yet. A final review appears next.", "การกดปุ่มนี้ยังไม่สมัคร ระบบจะเปิดสรุปให้คุณยืนยันอีกครั้ง", "此步骤尚未完成报名，下一步会显示最终确认。")}</p>
     </form>`;
 
   const form = content.querySelector<HTMLFormElement>("#registrationForm");
@@ -894,7 +944,7 @@ function openRegistration(eventId: string) {
     const result = stageRegistration(localStorage, input);
     const errorBox = content.querySelector<HTMLDivElement>("#formErrors");
     if (result.status === "validation_failed") {
-      if (errorBox) errorBox.innerHTML = `<strong>ยังไปต่อไม่ได้</strong><ul>${result.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>`;
+      if (errorBox) errorBox.innerHTML = `<strong>${tr("Check these details", "ยังไปต่อไม่ได้", "请检查以下信息")}</strong><ul>${result.errors.map((error) => `<li>${escapeHtml(localizeDomainText(error))}</li>`).join("")}</ul>`;
       return;
     }
     addActivity({ source: "human", title: "Registration prepared", detail: "Waiting for final human confirmation" });
@@ -906,27 +956,28 @@ function openRegistration(eventId: string) {
 }
 
 function showPendingConfirmation(input: RegistrationInput) {
-  const event = findEvent(input.eventId);
+  const sourceEvent = findEvent(input.eventId);
   const dialog = document.querySelector<HTMLDialogElement>("#confirmationDialog");
   const content = document.querySelector<HTMLDivElement>("#confirmationContent");
-  if (!event || !dialog || !content) return;
+  if (!sourceEvent || !dialog || !content) return;
+  const event = localizedEvent(sourceEvent);
   const returnPlan = safeReturnOptions(event.id, input.socialPreference);
 
   content.innerHTML = `
     <div class="confirmation-icon" aria-hidden="true">✓?</div>
     <p class="dialog-kicker">REVIEW BEFORE COMMIT</p>
-    <h2 id="confirmationTitle">คุณเป็นคนตัดสินใจ</h2>
-    <p class="confirmation-lead">Agent หรือฟอร์มเตรียมข้อมูลได้ แต่ run pass จะเกิดขึ้นเมื่อคุณกดยืนยันเท่านั้น</p>
+    <h2 id="confirmationTitle">${tr("You make the call", "คุณเป็นคนตัดสินใจ", "由你做决定")}</h2>
+    <p class="confirmation-lead">${tr("The agent can prepare the details. A Run Pass exists only after you confirm.", "Agent เตรียมข้อมูลได้ แต่ Run Pass จะเกิดขึ้นเมื่อคุณกดยืนยันเท่านั้น", "智能体可以准备信息，但只有你确认后才会生成跑步通行证。")}</p>
     <dl class="confirmation-list">
       <div><dt>RUNNER</dt><dd>${escapeHtml(input.runnerName)}</dd></div>
       <div><dt>EVENT</dt><dd>${event.city} · ${event.distanceKm} KM · ${formatDate(event.date)}</dd></div>
-      <div><dt>PACE</dt><dd>${PACE_LABELS[input.pace]}</dd></div>
-      <div><dt>SOCIAL</dt><dd>${SOCIAL_LABELS[input.socialPreference]}</dd></div>
-      <div><dt>GET HOME</dt><dd>${escapeHtml(returnPlan.warning)}</dd></div>
+      <div><dt>PACE</dt><dd>${paceLabel(input.pace)}</dd></div>
+      <div><dt>SOCIAL</dt><dd>${socialLabel(input.socialPreference)}</dd></div>
+      <div><dt>GET HOME</dt><dd>${escapeHtml(localizeDomainText(returnPlan.warning))}</dd></div>
     </dl>
     <div class="confirmation-actions">
-      <button class="button button-ghost" type="button" id="editPending">กลับไปแก้</button>
-      <button class="button button-primary" type="button" id="confirmPending">ยืนยันการสมัคร <span>→</span></button>
+      <button class="button button-ghost" type="button" id="editPending">${tr("Go back", "กลับไปแก้", "返回修改")}</button>
+      <button class="button button-primary" type="button" id="confirmPending">${tr("Confirm Run Pass", "ยืนยัน Run Pass", "确认跑步通行证")} <span>→</span></button>
     </div>`;
 
   content.querySelector<HTMLButtonElement>("#editPending")?.addEventListener("click", () => {
@@ -948,10 +999,12 @@ function showPendingConfirmation(input: RegistrationInput) {
       addActivity({ source: "human", title: "Run pass confirmed", detail: registration.id });
       dialog.close();
       refreshPasses();
-      showToast(state.session?.authenticated ? `บันทึก ${registration.id} ลง Passport แล้ว` : `สร้าง ${registration.id} แล้ว`);
+      showToast(state.session?.authenticated
+        ? tr(`${registration.id} saved to Passport`, `บันทึก ${registration.id} ลง Passport แล้ว`, `${registration.id} 已保存至通行证`)
+        : tr(`${registration.id} created`, `สร้าง ${registration.id} แล้ว`, `${registration.id} 已生成`));
       document.querySelector("#passes")?.scrollIntoView({ behavior: "smooth" });
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "ยืนยันไม่สำเร็จ", true);
+      showToast(error instanceof Error ? error.message : tr("Confirmation failed", "ยืนยันไม่สำเร็จ", "确认失败"), true);
     } finally {
       button.disabled = false;
       button.removeAttribute("aria-busy");
@@ -971,21 +1024,22 @@ function refreshPasses() {
   count.textContent = String(active.length);
 
   if (registrations.length === 0) {
-    list.innerHTML = `<div class="pass-empty"><span>R/</span><div><strong>ยังไม่มี run pass</strong><p>เลือกอีเวนต์ หรือให้ agent เตรียมการสมัครให้คุณ</p></div><a href="#events">Browse runs ↗</a></div>`;
+    list.innerHTML = `<div class="pass-empty"><span>R/</span><div><strong>${tr("No Run Pass yet", "ยังไม่มี Run Pass", "暂无跑步通行证")}</strong><p>${tr("Choose a route or ask the agent to prepare one.", "เลือกอีเวนต์ หรือให้ Agent เตรียมการสมัครให้คุณ", "选择一条路线，或让智能体为你准备。")}</p></div><a href="#events">${tr("Browse runs", "ดูรายการวิ่ง", "浏览路线")} ↗</a></div>`;
     return;
   }
 
   list.innerHTML = registrations.map((registration) => {
-    const event = findEvent(registration.eventId);
-    if (!event) return "";
+    const sourceEvent = findEvent(registration.eventId);
+    if (!sourceEvent) return "";
+    const event = localizedEvent(sourceEvent);
     return `
       <article class="run-pass ${registration.status === "cancelled" ? "is-cancelled" : ""}">
         <div class="pass-edge"><span>R/</span><small>${registration.status.toUpperCase()}</small></div>
         <div class="pass-body">
           <p>${event.city.toUpperCase()} / ${event.neighborhood}</p>
           <h3>${event.distanceKm} KM <em>${escapeHtml(event.routeLabel)}</em></h3>
-          <div><span>${formatDate(event.date)} · ${event.startTime}</span><span>${PACE_LABELS[registration.pace]}</span><span>${SOCIAL_LABELS[registration.socialPreference]}</span></div>
-          ${registration.status === "confirmed" ? `<button type="button" data-cancel-pass="${escapeHtml(registration.id)}">ยกเลิก Run Pass</button>` : ""}
+          <div><span>${formatDate(event.date)} · ${event.startTime}</span><span>${paceLabel(registration.pace)}</span><span>${socialLabel(registration.socialPreference)}</span></div>
+          ${registration.status === "confirmed" ? `<button type="button" data-cancel-pass="${escapeHtml(registration.id)}">${tr("Cancel Run Pass", "ยกเลิก Run Pass", "取消跑步通行证")}</button>` : ""}
         </div>
         <div class="pass-code"><span>${escapeHtml(registration.id)}</span><div aria-hidden="true">▌▐▌▌▐▌▐</div></div>
       </article>`;
@@ -994,15 +1048,15 @@ function refreshPasses() {
   list.querySelectorAll<HTMLButtonElement>("[data-cancel-pass]").forEach((button) => {
     button.addEventListener("click", async () => {
       const passId = button.dataset.cancelPass ?? "";
-      if (!window.confirm(`ยืนยันยกเลิก ${passId}?`)) return;
+      if (!window.confirm(tr(`Cancel ${passId}?`, `ยืนยันยกเลิก ${passId}?`, `确认取消 ${passId}？`))) return;
       button.disabled = true;
       try {
         await cancelPassForAgent(passId);
         addActivity({ source: "human", title: "Run pass cancelled", detail: passId });
         refreshPasses();
-        showToast(`ยกเลิก ${passId} แล้ว`);
+        showToast(tr(`${passId} cancelled`, `ยกเลิก ${passId} แล้ว`, `${passId} 已取消`));
       } catch (error) {
-        showToast(error instanceof Error ? error.message : "ยกเลิกไม่สำเร็จ", true);
+        showToast(error instanceof Error ? error.message : tr("Cancellation failed", "ยกเลิกไม่สำเร็จ", "取消失败"), true);
       } finally {
         button.disabled = false;
       }
@@ -1027,6 +1081,15 @@ function showToast(message: string, isError = false) {
 }
 
 function bindUi() {
+  document.querySelectorAll<HTMLButtonElement>("[data-locale]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const locale = button.dataset.locale as Locale;
+      if (locale === getLocale()) return;
+      setLocale(locale, localStorage);
+      renderLocalizedInterface();
+      showToast(tr("Language changed", "เปลี่ยนภาษาแล้ว", "语言已切换"));
+    });
+  });
   document.querySelector<HTMLFormElement>("#eventFilters")?.addEventListener("change", (event) => {
     const form = event.currentTarget as HTMLFormElement;
     const data = new FormData(form);
@@ -1076,7 +1139,7 @@ function bindUi() {
     if (request) {
       void runNaturalAgentRequest(request, fallback);
     } else {
-      void executeSchedulePlan(input, `“จัดตาราง ${filterDescription(fallback)} ให้ฉัน”`);
+      void executeSchedulePlan(input, `“${tr("Build a plan for", "จัดตารางให้ฉัน", "为我生成计划")}: ${filterDescription(fallback)}”`);
     }
   });
   document.querySelectorAll<HTMLButtonElement>("[data-runner-request]").forEach((button) => {
@@ -1096,6 +1159,59 @@ function bindUi() {
   document.querySelector<HTMLButtonElement>("#saveWeekButton")?.addEventListener("click", () => void saveCurrentWeek());
 }
 
+function renderWebMcpStatus() {
+  if (state.webMcpActionCount === 0) return;
+  const status = document.querySelector<HTMLDivElement>("#webMcpStatus");
+  const toolCount = document.querySelector<HTMLElement>("#toolCount");
+  if (toolCount) toolCount.textContent = tr(
+    `${state.webMcpActionCount} actions`,
+    `${state.webMcpActionCount} คำสั่ง`,
+    `${state.webMcpActionCount} 项操作`,
+  );
+  if (!status) return;
+  status.classList.toggle("is-live", state.webMcpSupported);
+  status.classList.toggle("is-fallback", !state.webMcpSupported);
+  status.innerHTML = state.webMcpSupported
+    ? `<span class="status-dot"></span><div><strong>${tr("Runner Agent connected via WebMCP", "Runner Agent เชื่อมต่อผ่าน WebMCP", "跑步智能体已通过 WebMCP 连接")}</strong><small>${tr(`${state.webMcpActionCount} actions ready for the browser agent`, `${state.webMcpActionCount} คำสั่งพร้อมให้ browser agent ใช้งาน`, `${state.webMcpActionCount} 项操作已供浏览器智能体使用`)}</small></div>`
+    : `<span class="status-dot"></span><div><strong>${tr("Runner Agent planner is ready", "Runner Agent พร้อมจัดตาราง", "跑步智能体规划器已就绪")}</strong><small>${tr("Connect a WebMCP browser to let an external agent use the same actions", "เชื่อมต่อ browser ที่รองรับ WebMCP เพื่อให้ Agent ภายนอกใช้คำสั่งเดียวกัน", "连接支持 WebMCP 的浏览器，让外部智能体使用相同操作")}</small></div>`;
+}
+
+function renderLocalizedInterface() {
+  document.documentElement.lang = getLocale() === "zh" ? "zh-CN" : getLocale() === "th" ? "th" : "en";
+  runWorldMount?.destroy();
+  runWorldMount = null;
+  runWorldLoadToken += 1;
+  renderShell();
+  renderAgentSchedule(state.filters);
+  renderActivity();
+  renderPassport();
+  refreshPasses();
+  if (state.activeSupportLoop) renderRunnerSupportLoop(state.activeSupportLoop);
+  bindUi();
+  renderWebMcpStatus();
+  const stage = document.querySelector<HTMLElement>("[data-run-world]");
+  if (stage) void mountCurrentRunWorld(stage, runWorldLoadToken);
+}
+
+async function mountCurrentRunWorld(stage: HTMLElement, token: number) {
+  if (typeof window.WebGLRenderingContext === "undefined") {
+    stage.dataset.renderState = "fallback";
+    return;
+  }
+  try {
+    const { mountRunWorld } = await import("./run-world");
+    const mount = mountRunWorld(stage);
+    if (token !== runWorldLoadToken || !stage.isConnected) {
+      mount.destroy();
+      return;
+    }
+    runWorldMount = mount;
+  } catch (error) {
+    stage.dataset.renderState = "fallback";
+    console.warn("3D run world unavailable; using static visual", error);
+  }
+}
+
 function setAgentPrompt(message: string) {
   const prompt = document.querySelector<HTMLParagraphElement>("#agentPromptText");
   if (prompt) prompt.textContent = message;
@@ -1104,7 +1220,7 @@ function setAgentPrompt(message: string) {
 async function executeSchedulePlan(input: Record<string, unknown>, prompt: string) {
   const harness = window.__RUN_SOCIAL_WEBMCP__;
   if (!harness) {
-    showToast("Runner Agent ยังเริ่มไม่สำเร็จ กรุณาลองอีกครั้ง", true);
+    showToast(tr("Runner Agent is not ready. Try again.", "Runner Agent ยังเริ่มไม่สำเร็จ กรุณาลองอีกครั้ง", "跑步智能体尚未就绪，请重试。"), true);
     return null;
   }
   const submit = document.querySelector<HTMLButtonElement>("#agentPlannerForm button[type='submit']");
@@ -1114,7 +1230,9 @@ async function executeSchedulePlan(input: Record<string, unknown>, prompt: strin
   try {
     const result = await harness.execute("plan_run_schedule", input);
     const count = (result as { count?: number }).count ?? 0;
-    showToast(count > 0 ? `Runner Agent จัดตาราง ${count} งานแล้ว` : "ยังไม่พบงาน ลองลดเงื่อนไขหนึ่งอย่าง");
+    showToast(count > 0
+      ? tr(`Runner Agent built ${count} run${count === 1 ? "" : "s"}`, `Runner Agent จัดตาราง ${count} งานแล้ว`, `跑步智能体已生成 ${count} 条路线`)
+      : tr("No run found. Remove one filter.", "ยังไม่พบงาน ลองลดเงื่อนไขหนึ่งอย่าง", "未找到路线，请减少一个筛选条件。"));
     return result as { count: number; events: Array<{ id: string }> };
   } catch (error) {
     showToast(error instanceof Error ? error.message : "Tool call failed", true);
@@ -1142,7 +1260,9 @@ async function runNaturalAgentRequest(request: string, fallback: EventFilters = 
 
   if (intent.action === "show_passport") {
     document.querySelector("#passport")?.scrollIntoView({ behavior: "smooth" });
-    showToast(state.session?.authenticated ? "เปิด Runner Passport แล้ว" : "Sign in เมื่อต้องการเปิดความจำของ Agent");
+    showToast(state.session?.authenticated
+      ? tr("Runner Passport opened", "เปิด Runner Passport แล้ว", "跑者通行证已打开")
+      : tr("Sign in only when you want Agent memory", "Sign in เมื่อต้องการเปิดความจำของ Agent", "仅在需要智能体记忆时登录"));
     return;
   }
 
@@ -1161,11 +1281,11 @@ async function runNaturalAgentRequest(request: string, fallback: EventFilters = 
     if (intent.action === "compare") {
       const eventIds = result.events.slice(0, 3).map((event) => event.id);
       if (eventIds.length < 2) {
-        showToast("เจอตัวเลือกเดียว ลองเล่าเงื่อนไขให้กว้างขึ้น", true);
+        showToast(tr("Only one choice matched. Broaden the request.", "เจอตัวเลือกเดียว ลองเล่าเงื่อนไขให้กว้างขึ้น", "仅匹配一个选项，请放宽条件。"), true);
         return;
       }
       await harness.execute("compare_run_events", { event_ids: eventIds });
-      showToast(`Runner Agent เทียบ ${eventIds.length} ตัวเลือกแล้ว`);
+      showToast(tr(`Runner Agent compared ${eventIds.length} choices`, `Runner Agent เทียบ ${eventIds.length} ตัวเลือกแล้ว`, `跑步智能体已比较 ${eventIds.length} 个选项`));
     } else if ((intent.action === "support_loop" || intent.action === "search_need") && first) {
       const support = await harness.execute("build_runner_support_loop", { event_id: first.id }) as {
         unresolved_needs?: Array<{ key?: CommerceNeed }>;
@@ -1176,9 +1296,9 @@ async function runNaturalAgentRequest(request: string, fallback: EventFilters = 
           event_id: first.id,
           need,
         }) as { products?: unknown[] };
-        showToast(`พบ ${merchant.products?.length ?? 0} รายการให้คุณตรวจเอง`);
+        showToast(tr(`Found ${merchant.products?.length ?? 0} results for you to review`, `พบ ${merchant.products?.length ?? 0} รายการให้คุณตรวจเอง`, `找到 ${merchant.products?.length ?? 0} 个结果供你查看`));
       } else {
-        showToast("Runner Commons Loop พร้อมแล้ว");
+        showToast(tr("Runner Commons Loop is ready", "Runner Commons Loop พร้อมแล้ว", "跑者共享循环已就绪"));
       }
     } else if (intent.action === "safe_return" && first) {
       const safeReturn = await harness.execute("get_safe_return_options", {
@@ -1186,18 +1306,18 @@ async function runNaturalAgentRequest(request: string, fallback: EventFilters = 
         social_preference: intent.filters.socialPreference ?? "alcohol_free",
       }) as { warning?: string };
       const summary = document.querySelector<HTMLDivElement>("#agentPlanSummary");
-      if (summary) summary.innerHTML = `<div><span>SAFE RETURN</span><strong>เลือก run และวางทางกลับแล้ว</strong></div><p>${escapeHtml(safeReturn.warning ?? "เลือกทางกลับก่อนออกวิ่ง")}</p>`;
-      showToast("Runner Agent วางทางกลับให้แล้ว");
+      if (summary) summary.innerHTML = `<div><span>SAFE RETURN</span><strong>${tr("Run selected. Return planned.", "เลือก run และวางทางกลับแล้ว", "路线已选择，返程已规划。")}</strong></div><p>${escapeHtml(localizeDomainText(safeReturn.warning ?? tr("Choose a return before the run", "เลือกทางกลับก่อนออกวิ่ง", "跑步前请选择返程方式")))}</p>`;
+      showToast(tr("Runner Agent planned your return", "Runner Agent วางทางกลับให้แล้ว", "跑步智能体已规划返程"));
     }
   } catch (error) {
-    showToast(error instanceof Error ? error.message : "Runner Agent ทำงานไม่สำเร็จ", true);
+    showToast(error instanceof Error ? error.message : tr("Runner Agent could not complete the action", "Runner Agent ทำงานไม่สำเร็จ", "跑步智能体无法完成操作"), true);
   }
 }
 
 async function savePlanForAgent(filters: EventFilters, eventIds: string[]) {
   if (!state.session?.authenticated) {
     document.querySelector("#passport")?.scrollIntoView({ behavior: "smooth" });
-    throw new Error("Sign in with ChatGPT ก่อนบันทึกตารางลง Runner Passport");
+    throw new Error(tr("Sign in with ChatGPT before saving to Runner Passport", "Sign in with ChatGPT ก่อนบันทึกตารางลง Runner Passport", "请先使用 ChatGPT 登录，再保存至跑者通行证"));
   }
   const plan = await persistRunPlan({ filters, eventIds });
   await refreshPassportData();
@@ -1207,7 +1327,7 @@ async function savePlanForAgent(filters: EventFilters, eventIds: string[]) {
 
 async function readPassportForAgent() {
   if (!state.session?.authenticated) {
-    throw new Error("Sign in with ChatGPT ก่อนอ่าน Runner Passport");
+    throw new Error(tr("Sign in with ChatGPT before reading Runner Passport", "Sign in with ChatGPT ก่อนอ่าน Runner Passport", "请先使用 ChatGPT 登录，再读取跑者通行证"));
   }
   const passport = await refreshPassportData();
   return {
@@ -1246,7 +1366,7 @@ async function cancelPassForAgent(passId: string) {
 async function saveCurrentWeek() {
   if (!state.session?.authenticated) {
     document.querySelector("#passport")?.scrollIntoView({ behavior: "smooth" });
-    showToast("Sign in with ChatGPT เพื่อให้ Agent จำตารางนี้", true);
+    showToast(tr("Sign in with ChatGPT to remember this week", "Sign in with ChatGPT เพื่อให้ Agent จำตารางนี้", "使用 ChatGPT 登录以记住本周计划"), true);
     return;
   }
   const harness = window.__RUN_SOCIAL_WEBMCP__;
@@ -1261,9 +1381,9 @@ async function saveCurrentWeek() {
   if (button) button.disabled = true;
   try {
     const result = await harness.execute("save_run_schedule", input) as { event_count?: number };
-    showToast(`บันทึก ${result.event_count ?? 0} runs ลง Passport แล้ว`);
+    showToast(tr(`${result.event_count ?? 0} runs saved to Passport`, `บันทึก ${result.event_count ?? 0} runs ลง Passport แล้ว`, `${result.event_count ?? 0} 条路线已保存至通行证`));
   } catch (error) {
-    showToast(error instanceof Error ? error.message : "บันทึกตารางไม่สำเร็จ", true);
+    showToast(error instanceof Error ? error.message : tr("The week could not be saved", "บันทึกตารางไม่สำเร็จ", "本周计划无法保存"), true);
   } finally {
     button?.removeAttribute("aria-busy");
     if (button) button.disabled = false;
@@ -1273,42 +1393,42 @@ async function saveCurrentWeek() {
 async function runAgentAction(action: string) {
   const harness = window.__RUN_SOCIAL_WEBMCP__;
   if (!harness) {
-    showToast("Runner Agent ยังเริ่มไม่สำเร็จ กรุณาลองอีกครั้ง", true);
+    showToast(tr("Runner Agent is not ready. Try again.", "Runner Agent ยังเริ่มไม่สำเร็จ กรุณาลองอีกครั้ง", "跑步智能体尚未就绪，请重试。"), true);
     return;
   }
 
   try {
     if (action === "plan-week") {
-      await executeSchedulePlan({}, "“เปิดตารางวิ่งทั้งหมดและเรียงงานถัดไปให้ฉัน”");
+      await executeSchedulePlan({}, `“${tr("Show every run and put my next move first", "เปิดตารางวิ่งทั้งหมดและเรียงงานถัดไปให้ฉัน", "显示所有路线，并优先给出下一步") }”`);
     } else if (action === "bangkok-easy") {
       const result = await executeSchedulePlan(
         { city: "Bangkok", distance_km: 5, pace: "social", social_preference: "alcohol_free", alcohol_free_required: true },
-        "“หา Bangkok 5K เพซสบาย มี alcohol-free แล้วเปิดตัวที่เหมาะให้ฉัน”",
+        `“${tr("Find an easy alcohol-free Bangkok 5K and open the best fit", "หา Bangkok 5K เพซสบาย มี alcohol-free แล้วเปิดตัวที่เหมาะให้ฉัน", "寻找曼谷轻松无酒精5公里，并打开最合适的路线") }”`,
       );
       const first = result?.events[0];
       if (first) await harness.execute("get_run_event_details", { event_id: first.id });
     } else if (action === "compare-social") {
       const result = await executeSchedulePlan(
         { pace: "social", social_preference: "alcohol_free" },
-        "“จัดตารางสาย social ที่มี alcohol-free แล้วเทียบสามตัวเลือกแรก”",
+        `“${tr("Plan alcohol-free social runs and compare the first three", "จัดตารางสาย social ที่มี alcohol-free แล้วเทียบสามตัวเลือกแรก", "规划无酒精社交跑并比较前三个选项") }”`,
       );
       const ids = result?.events.slice(0, 3).map((event) => event.id) ?? [];
       if (ids.length >= 2) {
         await harness.execute("compare_run_events", { event_ids: ids });
-        showToast(`Runner Agent เทียบ ${ids.length} ตัวเลือกแล้ว`);
+        showToast(tr(`Runner Agent compared ${ids.length} choices`, `Runner Agent เทียบ ${ids.length} ตัวเลือกแล้ว`, `跑步智能体已比较 ${ids.length} 个选项`));
       }
     } else if (action === "return") {
-      setAgentPrompt("“เปิดงาน Bangkok 5K แล้ววางทางกลับที่ปลอดภัยให้ฉัน”");
+      setAgentPrompt(`“${tr("Open the Bangkok 5K and plan a safe return", "เปิดงาน Bangkok 5K แล้ววางทางกลับที่ปลอดภัยให้ฉัน", "打开曼谷5公里路线并规划安全返程") }”`);
       const result = await harness.execute("get_safe_return_options", {
         event_id: "bkk-riverside-5",
         social_preference: "alcohol_free",
       }) as { warning?: string };
       const summary = document.querySelector<HTMLDivElement>("#agentPlanSummary");
-      if (summary) summary.innerHTML = `<div><span>SAFE RETURN</span><strong>แผนกลับพร้อมแล้ว</strong></div><p>${escapeHtml(result.warning ?? "เลือกทางกลับก่อนออกวิ่ง")}</p>`;
-      showToast("Runner Agent วางทางกลับให้แล้ว");
+      if (summary) summary.innerHTML = `<div><span>SAFE RETURN</span><strong>${tr("Return plan ready", "แผนกลับพร้อมแล้ว", "返程计划已就绪")}</strong></div><p>${escapeHtml(localizeDomainText(result.warning ?? tr("Choose a return before the run", "เลือกทางกลับก่อนออกวิ่ง", "跑步前请选择返程方式")))}</p>`;
+      showToast(tr("Runner Agent planned your return", "Runner Agent วางทางกลับให้แล้ว", "跑步智能体已规划返程"));
     }
   } catch (error) {
-    showToast(error instanceof Error ? error.message : "Runner Agent ทำงานไม่สำเร็จ", true);
+    showToast(error instanceof Error ? error.message : tr("Runner Agent could not complete the action", "Runner Agent ทำงานไม่สำเร็จ", "跑步智能体无法完成操作"), true);
   }
 }
 
@@ -1327,17 +1447,8 @@ async function initializeWebMcp() {
     logActivity: addActivity,
   });
   state.webMcpSupported = result.supported;
-
-  const status = document.querySelector<HTMLDivElement>("#webMcpStatus");
-  const toolCount = document.querySelector<HTMLElement>("#toolCount");
-  if (toolCount) toolCount.textContent = `${result.registered.length || 14} actions`;
-  if (status) {
-    status.classList.toggle("is-live", result.supported);
-    status.classList.toggle("is-fallback", !result.supported);
-    status.innerHTML = result.supported
-      ? `<span class="status-dot"></span><div><strong>Runner Agent connected via WebMCP</strong><small>${result.registered.length} actions ready for the browser agent</small></div>`
-      : `<span class="status-dot"></span><div><strong>Runner Agent planner is ready</strong><small>Connect a WebMCP browser to let an external agent use the same actions</small></div>`;
-  }
+  state.webMcpActionCount = result.registered.length || 14;
+  renderWebMcpStatus();
   addActivity({
     source: "system",
     title: result.supported ? "Runner Agent connected" : "Runner Agent local planner ready",
@@ -1347,12 +1458,7 @@ async function initializeWebMcp() {
   });
 }
 
-renderShell();
-renderAgentSchedule({});
-renderEvents();
-renderActivity();
-refreshPasses();
-bindUi();
+renderLocalizedInterface();
 void initializePassport();
 void initializeCommerceStatus();
 

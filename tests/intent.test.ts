@@ -47,4 +47,21 @@ describe("natural runner requests", () => {
       filters: { city: "Bangkok", distanceKm: 5 },
     });
   });
+
+  it("understands a Simplified Chinese run request", () => {
+    expect(interpretRunnerRequest("帮我安排曼谷轻松无酒精 5 公里跑")).toEqual({
+      action: "plan",
+      filters: {
+        city: "Bangkok",
+        distanceKm: 5,
+        pace: "social",
+        socialPreference: "alcohol_free",
+        alcoholFreeRequired: true,
+      },
+    });
+    expect(interpretRunnerRequest("比较清迈社交跑并规划安全返程")).toMatchObject({
+      action: "safe_return",
+      filters: { city: "Chiang Mai", pace: "social" },
+    });
+  });
 });
