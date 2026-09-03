@@ -12,4 +12,3 @@ export const BRAND = {
     gold: "#f2c14e",
   },
 } as const;
-
