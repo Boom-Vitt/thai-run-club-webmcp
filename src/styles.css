@@ -2378,9 +2378,10 @@ body::before {
 .agent-promise-grid article:nth-child(4) { background: var(--lime); color: var(--ink); }
 
 .agent-promise-grid article i {
-  font-family: Impact, sans-serif;
+  font-family: inherit;
   font-size: 1.9rem;
   font-style: normal;
+  font-weight: 900;
   line-height: 1;
 }
 
@@ -2409,14 +2410,13 @@ body::before {
   position: relative;
   width: 100%;
   height: 100%;
-  border: 1px solid color-mix(in srgb, var(--blue) 58%, transparent);
-  border-radius: 48% 48% 18px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: clamp(42px, 7vw, 82px) 18px clamp(42px, 7vw, 82px) 18px;
   background:
-    radial-gradient(circle at 52% 45%, rgba(255, 255, 255, 0.18), transparent 28%),
-    radial-gradient(circle at 20% 74%, rgba(165, 25, 49, 0.72), transparent 32%),
-    radial-gradient(circle at 82% 18%, rgba(22, 57, 166, 0.68), transparent 35%),
-    linear-gradient(145deg, #071735 0%, #102758 54%, #06102a 100%);
-  box-shadow: 0 34px 80px rgba(7, 23, 53, 0.2);
+    radial-gradient(circle at 22% 76%, rgba(224, 21, 54, 0.34), transparent 32%),
+    radial-gradient(circle at 78% 22%, rgba(31, 79, 214, 0.5), transparent 37%),
+    linear-gradient(145deg, #020817 0%, #081c46 50%, #040a1f 100%);
+  box-shadow: 0 34px 80px rgba(7, 23, 53, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   overflow: hidden;
   isolation: isolate;
 }
@@ -2426,21 +2426,21 @@ body::before {
   inset: 0;
   z-index: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
-  background-size: 42px 42px;
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 52px 52px;
   content: "";
-  mask-image: linear-gradient(to bottom, black, transparent 88%);
+  mask-image: radial-gradient(circle at 55% 44%, black, transparent 76%);
 }
 
 .run-world-stage::after {
   position: absolute;
   right: 0;
+  top: 0;
   bottom: 0;
-  left: 0;
   z-index: 3;
-  height: 7px;
-  background: linear-gradient(to right, var(--coral) 0 20%, #fff 20% 35%, var(--blue) 35% 65%, #fff 65% 80%, var(--coral) 80% 100%);
+  width: 6px;
+  background: linear-gradient(to bottom, var(--coral) 0 17%, #fff 17% 30%, var(--blue) 30% 70%, #fff 70% 83%, var(--coral) 83% 100%);
   content: "";
 }
 
@@ -2450,90 +2450,124 @@ body::before {
   z-index: 1;
   width: 100%;
   height: 100%;
+  opacity: 1;
+  transition: opacity 300ms ease;
 }
 
 .run-world-fallback {
   position: absolute;
-  inset: 12%;
+  inset: 13% 19%;
   z-index: 0;
   display: grid;
   place-items: center;
-  opacity: 0.86;
-  transform: rotate(calc(var(--world-progress) * 90deg));
+  opacity: 0.72;
+  transform: rotate(calc(-6deg + var(--world-progress) * 18deg));
+  transition: opacity 350ms ease;
 }
 
 .run-world-fallback span {
   position: absolute;
-  width: min(80%, 430px);
-  aspect-ratio: 1;
-  border: 8px solid var(--coral);
-  border-radius: 50%;
-  transform: rotateX(62deg);
+  width: 24%;
+  height: 82%;
+  border-radius: 90% 18% 90% 18%;
+  background: var(--coral);
+  box-shadow: 0 20px 34px rgba(0, 0, 0, 0.28);
+  transform: translateX(-32%) rotate(28deg) skewY(-8deg);
 }
 
-.run-world-fallback span:nth-child(2) { width: min(65%, 350px); border-color: #fff; transform: rotateX(62deg) rotateZ(18deg); }
-.run-world-fallback span:nth-child(3) { width: min(50%, 270px); border-color: var(--blue); transform: rotateX(62deg) rotateZ(36deg); }
-.run-world-fallback b { color: #fff; font-family: Impact, sans-serif; font-size: 5rem; }
-.run-world-stage[data-render-state="webgl"] .run-world-fallback { opacity: 0.08; }
+.run-world-fallback span:nth-child(2) { height: 88%; background: #fff; transform: translateX(20%) rotate(-6deg) skewY(6deg); }
+.run-world-fallback span:nth-child(3) { height: 76%; background: var(--blue); transform: translate(44%, 6%) rotate(36deg) skewY(-7deg); }
+.run-world-fallback b { width: 24%; aspect-ratio: 0.7; border-radius: 50%; background: #020817; box-shadow: inset 10px 0 24px rgba(22, 57, 166, 0.45); }
+.run-world-stage[data-render-state="ready"] .run-world-fallback { opacity: 0.03; }
+.run-world-stage[data-render-state="fallback"] .run-world-fallback { z-index: 2; opacity: 0.9; }
 
-.world-orbit,
-.world-stamp {
+.world-index,
+.world-signal,
+.world-caption,
+.world-credit {
   position: absolute;
   z-index: 4;
   color: #fff;
   pointer-events: none;
 }
 
-.world-orbit {
+.world-index {
+  top: 1.4rem;
+  left: 1.45rem;
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.42rem 0.62rem 0.42rem 0.46rem;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 999px;
-  background: rgba(7, 23, 53, 0.68);
-  backdrop-filter: blur(8px);
-  font-size: 0.55rem;
-  letter-spacing: 0.13em;
-}
-
-.world-orbit i {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--lime);
-  color: var(--ink);
-  font-style: normal;
-  font-weight: 950;
-}
-
-.world-orbit-one { top: 17%; left: 8%; transform: translateY(calc(var(--world-progress) * 24px)); }
-.world-orbit-two { top: 45%; right: 5%; transform: translateY(calc(var(--world-progress) * -32px)); }
-.world-orbit-three { right: 15%; bottom: 16%; transform: translateX(calc(var(--world-progress) * -20px)); }
-
-.world-stamp {
-  bottom: 1.8rem;
-  left: 1.5rem;
-}
-
-.world-stamp span {
-  display: block;
-  margin-bottom: 0.45rem;
-  color: var(--lime);
-  font-size: 0.58rem;
-  font-weight: 900;
+  gap: 0.6rem;
+  font-size: 0.56rem;
+  font-weight: 800;
   letter-spacing: 0.16em;
+  opacity: 0.72;
 }
 
-.world-stamp strong {
-  display: block;
-  font-family: Impact, sans-serif;
-  font-size: clamp(1.8rem, 3.2vw, 3.4rem);
-  letter-spacing: 0;
-  line-height: 0.86;
+.world-index i {
+  width: 66px;
+  height: 1px;
+  background: linear-gradient(to right, #fff calc(var(--world-progress) * 100%), rgba(255, 255, 255, 0.22) 0);
 }
+
+.world-signal {
+  top: 1.4rem;
+  right: 1.6rem;
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  height: 24px;
+}
+
+.world-signal i {
+  width: 3px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.42);
+  transform: scaleY(calc(0.75 + var(--world-progress) * 0.5));
+  transform-origin: bottom;
+}
+
+.world-signal i:nth-child(2) { height: 13px; background: var(--coral); }
+.world-signal i:nth-child(3) { height: 22px; background: #fff; }
+.world-signal i:nth-child(4) { height: 16px; background: var(--blue); }
+.world-signal i:nth-child(5) { height: 10px; background: var(--lime); }
+
+.world-caption {
+  bottom: 1.35rem;
+  left: 1.4rem;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.72rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px 14px 14px 4px;
+  background: rgba(2, 8, 23, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.world-caption strong {
+  font-size: 0.83rem;
+  letter-spacing: 0.11em;
+}
+
+.world-caption span,
+.world-credit span,
+.world-credit b {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.world-caption span { color: var(--lime); }
+
+.world-credit {
+  right: 1.5rem;
+  bottom: 1.55rem;
+  display: grid;
+  justify-items: end;
+  gap: 0.24rem;
+  opacity: 0.62;
+}
+
+.world-credit b { color: #fff; }
 
 .agent-desk {
   grid-column: 1 / -1;
@@ -2549,7 +2583,7 @@ body::before {
 .event-card.accent-coral { --event-accent: var(--coral); }
 
 html[lang="zh-CN"] body { font-family: Inter, "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; }
-html[lang="zh-CN"] .hero h1 { font-family: "PingFang SC", "Noto Sans CJK SC", Impact, sans-serif; letter-spacing: -0.07em; }
+html[lang="zh-CN"] .hero h1 { font-family: "PingFang SC", "Noto Sans CJK SC", Inter, sans-serif; letter-spacing: -0.07em; }
 
 @media (max-width: 1180px) {
   .site-header { grid-template-columns: 1fr auto; }
@@ -2578,7 +2612,9 @@ html[lang="zh-CN"] .hero h1 { font-family: "PingFang SC", "Noto Sans CJK SC", Im
   .agent-promise-grid { grid-template-columns: 1fr 1fr; }
   .agent-promise-grid article { min-height: 102px; }
   .run-world { height: 470px; }
-  .run-world-stage { border-radius: 46% 46% 12px 12px; }
-  .world-orbit-two { top: 50%; }
-  .world-stamp strong { font-size: 2.2rem; }
+  .run-world-stage { border-radius: 42px 12px 42px 12px; }
+  .world-credit { display: none; }
+  .world-caption { bottom: 1rem; left: 1rem; }
+  .world-index { top: 1rem; left: 1rem; }
+  .world-signal { top: 1rem; right: 1.2rem; }
 }

@@ -200,13 +200,13 @@ function renderShell() {
             <article><i aria-hidden="true">↗</i><span>04 / PASS</span><strong>${tr("You decide", "คุณตัดสินใจ", "由你决定")}</strong></article>
           </div>
         </div>
-        <div class="run-world" role="img" aria-label="${tr("An interactive 3D runner moving through red, white, and blue Thai route ribbons", "นักวิ่ง 3D เคลื่อนผ่านริบบิ้นเส้นทางสีแดง ขาว น้ำเงินของไทย", "3D跑者穿梭于泰国红白蓝路线飘带之间")}">
+        <div class="run-world" role="img" aria-label="${tr("An interactive Thai pace sculpture built from red, white, and blue motion blades", "ประติมากรรมเพซแบบอินเทอร์แอ็กทีฟ สร้างจากเส้นการเคลื่อนไหวสีแดง ขาว และน้ำเงิน", "由红白蓝动态翼片构成的互动泰式配速雕塑")}">
           <div class="run-world-stage" data-run-world>
-            <div class="run-world-fallback" aria-hidden="true"><span></span><span></span><span></span><b>R/</b></div>
-            <div class="world-orbit world-orbit-one"><i>01</i><strong>${tr("SCOUT", "ค้นหา", "探索")}</strong></div>
-            <div class="world-orbit world-orbit-two"><i>02</i><strong>${tr("CHECK", "ตรวจ", "检查")}</strong></div>
-            <div class="world-orbit world-orbit-three"><i>03</i><strong>${tr("GO", "วิ่ง", "出发")}</strong></div>
-            <div class="world-stamp"><span>${tr("SCROLL TO MOVE", "เลื่อนเพื่อขยับ", "滚动驱动")}</span><strong>THAI<br />MOTION<br />LOOM</strong></div>
+            <div class="run-world-fallback" aria-hidden="true"><span></span><span></span><span></span><b></b></div>
+            <div class="world-index" aria-hidden="true"><span>01</span><i></i><span>04</span></div>
+            <div class="world-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="world-caption"><strong>${tr("THAI PACE", "จังหวะไทย", "泰式节奏")}</strong><span>${tr("SCROLL TO ORBIT", "เลื่อนเพื่อหมุนมุมมอง", "滚动切换视角")}</span></div>
+            <div class="world-credit"><span>BLENDER / THREE.JS</span><b>${tr("ORIGINAL 3D", "สามมิติต้นฉบับ", "原创三维")}</b></div>
           </div>
         </div>
         <section class="agent-desk" id="agent-planner" aria-labelledby="agent-planner-title">

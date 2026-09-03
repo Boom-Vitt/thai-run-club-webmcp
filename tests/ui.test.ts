@@ -26,6 +26,9 @@ describe("Runner Agent working surface", () => {
     await Promise.resolve();
 
     expect(document.querySelector("#hero-title")?.textContent).toContain("MOVE WITH");
+    expect(document.querySelector(".run-world")?.getAttribute("aria-label")).toContain("Thai pace sculpture");
+    expect(document.querySelector(".run-world")?.textContent).toContain("THAI PACE");
+    expect(document.querySelector(".run-world")?.textContent).not.toContain("THAI MOTION LOOM");
     expect(document.querySelectorAll(".agent-schedule-row")).toHaveLength(6);
 
     const form = document.querySelector<HTMLFormElement>("#agentPlannerForm")!;

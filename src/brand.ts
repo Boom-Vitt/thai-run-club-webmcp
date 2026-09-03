@@ -1,7 +1,7 @@
 export const BRAND = {
   workingName: "RUN SOCIAL TH",
   statusLabel: "WORKING LABEL",
-  concept: "Thai Motion Loom",
+  concept: "Thai Pace Sculpture",
   promise: "Turn a running intention into a safe, human-approved week in motion.",
   palette: {
     ink: "#071735",
