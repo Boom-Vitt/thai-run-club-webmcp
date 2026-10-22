@@ -1,3 +1,15 @@
+<!-- BBN:HEADER:START -->
+<div align="center">
+
+<img src=".github/brand/banner.svg" width="100%" alt="Thai Run Club × WebMCP — Runner Agent with 14 WebMCP actions and shared state" />
+
+<a href="https://github.com/Boom-Vitt/thai-run-club-webmcp/stargazers"><img src="https://img.shields.io/github/stars/Boom-Vitt/thai-run-club-webmcp?style=flat-square&color=14b8a6&labelColor=0b1220" alt="stars" /></a>
+<a href="https://github.com/Boom-Vitt/thai-run-club-webmcp/commits/main"><img src="https://img.shields.io/github/last-commit/Boom-Vitt/thai-run-club-webmcp?style=flat-square&color=14b8a6&labelColor=0b1220" alt="last commit" /></a>
+<a href="https://github.com/Boom-Vitt"><img src="https://img.shields.io/badge/by-BoomBigNose-14b8a6?style=flat-square&labelColor=0b1220" alt="by BoomBigNose" /></a>
+
+</div>
+<!-- BBN:HEADER:END -->
+
 # Thailand Run Club × Optional Post-Run Social
 
 > Working label only. The participant will choose the final Devpost project name.
@@ -140,3 +152,15 @@ tests/           Domain, safety, privacy, and WebMCP integration tests
 ## Demo-data notice
 
 All displayed events, hosts, capacity, prices, routes, and venues are fictional demo data. A production launch requires organizer verification, venue agreements, licensing and legal review, route permits, insurance, operational safety review, and an appropriate privacy policy.
+
+<!-- BBN:FOOTER:START -->
+---
+
+<div align="center">
+
+**สร้างโดย [BoomBigNose](https://github.com/Boom-Vitt)** · [Kruoop.com](https://kruoop.com) แหล่งเรียน AI + คอมมูนิตี้ · [Seeneo.ai](https://seeneo.ai) · [YouTube 220K](https://www.youtube.com/@BoomBigNose)
+
+<sub>ถ้าโปรเจกต์นี้มีประโยชน์ กด ⭐ ให้กำลังใจกันได้เลย</sub>
+
+</div>
+<!-- BBN:FOOTER:END -->
